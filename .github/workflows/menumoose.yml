@@ -1,0 +1,29 @@
+name: MenuMoose
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday UTC 6:00 = Helsinki 8:00
+  workflow_dispatch:
+
+jobs:
+  menumoose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install requests
+      - name: Run menumoose
+        env:
+          MENU_EMAIL_LIST: ${{ secrets.MENU_EMAIL_LIST }}
+          MENU_SMTP_SERVER: ${{ secrets.MENU_SMTP_SERVER }}
+          MENU_SMTP_PORT: ${{ secrets.MENU_SMTP_PORT }}
+          MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
+          MENU_SMTP_PASS: ${{ secrets.MENU_SMTP_PASS }}
+        run: |
+          python github actions/MenuMoose/menumoose.py
