@@ -26,4 +26,4 @@ jobs:
           MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
           MENU_SMTP_PASS: ${{ secrets.MENU_SMTP_PASS }}
         run: |
-          python github actions/MenuMoose/menumoose.py
+          python MenuMoose/menumoose.py
