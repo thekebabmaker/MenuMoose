@@ -3,6 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+from openai import OpenAI
 
 # --- CONFIG ---
 EMAIL_LIST = os.environ.get('MENU_EMAIL_LIST', '').split(',')  # comma-separated
@@ -12,6 +13,17 @@ SMTP_USER = os.environ.get('MENU_SMTP_USER', 'user@example.com')
 SMTP_PASS = os.environ.get('MENU_SMTP_PASS', 'password')
 
 MENU_JSON_URL = 'https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223'
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '').strip()
+
+TRANSLATION_MODEL = 'openrouter/free'
+MODEL_URL = 'https://openrouter.ai/api/v1'
+
+TRANSLATION_PROMPT = (
+    'You are a professional menu translator. '
+    'Translate the provided English dish title into Simplified Chinese. '
+    'Keep diet labels like (L,G), (M,G,V), numbers, and punctuation if present. '
+    'Return only the translated Chinese text without explanation.'
+)
 
 # Finnish weekday names -> English
 DAY_NAMES = {
@@ -23,6 +35,35 @@ DAY_NAMES = {
     'Lauantai': 'Saturday',
     'Sunnuntai': 'Sunday',
 }
+
+translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+translation_cache = {}
+
+
+def translate_en_to_zh(text):
+    if not text or text == 'N/A' or translation_client is None:
+        return text
+
+    if text in translation_cache:
+        return translation_cache[text]
+
+    try:
+        response = translation_client.responses.create(
+            model=TRANSLATION_MODEL,
+            input=[
+                {'role': 'system', 'content': TRANSLATION_PROMPT},
+                {'role': 'user', 'content': text},
+            ],
+            temperature=0,
+        )
+        translated_text = (response.output_text or '').strip()
+        if not translated_text:
+            translated_text = text
+    except Exception:
+        translated_text = text
+
+    translation_cache[text] = translated_text
+    return translated_text
 
 # --- FETCH & PARSE MENU ---
 def fetch_menu():
@@ -46,6 +87,19 @@ def fetch_menu():
         })
     return timeperiod, days
 
+
+def translate_days(days):
+    translated_days = []
+    for day in days:
+        translated_days.append(
+            {
+                **day,
+                'c1_title_zh': translate_en_to_zh(day['c1_title']),
+                'c2_title_zh': translate_en_to_zh(day['c2_title']),
+            }
+        )
+    return translated_days
+
 # --- FORMAT WEEKLY MENU ---
 def format_menu(timeperiod, days):
     separator = '=' * 56
@@ -56,9 +110,11 @@ def format_menu(timeperiod, days):
     ]
     for day in days:
         lines.append(f"  {day['date']}")
-        lines.append(f"    1. FAVOURITES  : {day['c1_title']}")
+        lines.append(f"    1. FAVOURITES  : {day['c1_title_zh']}")
+        lines.append(f"                     EN: {day['c1_title']}")
         lines.append(f"                     {day['c1_price']}")
-        lines.append(f"    2. FOOD MARKET : {day['c2_title']}")
+        lines.append(f"    2. FOOD MARKET : {day['c2_title_zh']}")
+        lines.append(f"                     EN: {day['c2_title']}")
         lines.append(f"                     {day['c2_price']}")
         lines.append('')
     lines.append(separator)
@@ -80,4 +136,5 @@ def send_menu_email(timeperiod, days):
 
 if __name__ == '__main__':
     timeperiod, days = fetch_menu()
+    days = translate_days(days)
     send_menu_email(timeperiod, days)
