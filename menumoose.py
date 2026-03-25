@@ -5,7 +5,6 @@ from email.mime.multipart import MIMEMultipart
 import os
 from openai import OpenAI
 
-# --- CONFIG ---
 EMAIL_LIST = os.environ.get('MENU_EMAIL_LIST', '').split(',')  # comma-separated
 SMTP_SERVER = os.environ.get('MENU_SMTP_SERVER', 'smtp.example.com')
 SMTP_PORT = int(os.environ.get('MENU_SMTP_PORT', '587'))
@@ -15,7 +14,8 @@ SMTP_PASS = os.environ.get('MENU_SMTP_PASS', 'password')
 MENU_JSON_URL = 'https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223'
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '').strip()
 
-TRANSLATION_MODEL = 'openrouter/free'
+# TRANSLATION_MODEL = 'openrouter/free'
+TRANSLATION_MODEL  = 'stepfun/step-3.5-flash:free'
 MODEL_URL = 'https://openrouter.ai/api/v1'
 
 TRANSLATION_PROMPT = (
@@ -25,7 +25,6 @@ TRANSLATION_PROMPT = (
     'Return only the translated Chinese text without explanation.'
 )
 
-# Finnish weekday names -> English
 DAY_NAMES = {
     'Maanantai': 'Monday',
     'Tiistai': 'Tuesday',
@@ -40,32 +39,70 @@ translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENA
 translation_cache = {}
 
 
-def translate_en_to_zh(text):
-    if not text or text == 'N/A' or translation_client is None:
-        return text
+def translate_menu_bulk(titles_en):
+    """
+    Translate all menu titles in one API call.
 
-    if text in translation_cache:
-        return translation_cache[text]
+    Args:
+        titles_en: list of English food titles
+
+    Returns:
+        dict mapping eng_title -> zh_title
+    """
+    if not titles_en or translation_client is None:
+        return {title: title for title in titles_en}
+
+    # Filter out N/A values
+    titles_to_translate = [t for t in set(titles_en) if t and t != 'N/A']
+    if not titles_to_translate:
+        return {title: title for title in titles_en}
+
+    # Check cache first
+    uncached = [t for t in titles_to_translate if t not in translation_cache]
+    if not uncached:
+        return {t: translation_cache.get(t, t) for t in titles_en}
+
+    # Build bulk payload: one title per line
+    bulk_text = '\n'.join(uncached)
 
     try:
-        response = translation_client.responses.create(
+        response = translation_client.chat.completions.create(
             model=TRANSLATION_MODEL,
-            input=[
-                {'role': 'system', 'content': TRANSLATION_PROMPT},
-                {'role': 'user', 'content': text},
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are a professional menu translator. '
+                        'I will give you a list of English dish titles (one per line). '
+                        'Translate each to Simplified Chinese (one per line). '
+                        'Keep diet labels like (L,G), (M,G,V), numbers, and punctuation. '
+                        'Return ONLY the translated titles, one per line, same order.'
+                    )
+                },
+                {'role': 'user', 'content': bulk_text},
             ],
             temperature=0,
         )
-        translated_text = (response.output_text or '').strip()
-        if not translated_text:
-            translated_text = text
+        translated_text = (response.choices[0].message.content or '').strip()
+        translated_lines = translated_text.split('\n')
     except Exception:
-        translated_text = text
+        translated_lines = uncached  # Fallback to original
 
-    translation_cache[text] = translated_text
-    return translated_text
+    # Map results back to cache
+    for orig, trans in zip(uncached, translated_lines):
+        translation_cache[orig] = trans.strip()
 
-# --- FETCH & PARSE MENU ---
+    # Return full mapping
+    result = {}
+    for title in titles_en:
+        if title == 'N/A' or not title:
+            result[title] = title
+        else:
+            result[title] = translation_cache.get(title, title)
+
+    return result
+
+
 def fetch_menu():
     resp = requests.get(MENU_JSON_URL, timeout=15)
     resp.raise_for_status()
@@ -89,38 +126,70 @@ def fetch_menu():
 
 
 def translate_days(days):
+    """
+    Translate all dish titles in one bulk API call, then map back to days.
+    """
+    # Collect all English titles
+    titles_en = []
+    for day in days:
+        if day['c1_title'] and day['c1_title'] != 'N/A':
+            titles_en.append(day['c1_title'])
+        if day['c2_title'] and day['c2_title'] != 'N/A':
+            titles_en.append(day['c2_title'])
+
+    # Translate all at once
+    title_mapping = translate_menu_bulk(titles_en)
+
+    # Apply translations to each day
     translated_days = []
     for day in days:
-        translated_days.append(
-            {
-                **day,
-                'c1_title_zh': translate_en_to_zh(day['c1_title']),
-                'c2_title_zh': translate_en_to_zh(day['c2_title']),
-            }
-        )
+        translated_days.append({
+            **day,
+            'c1_title_zh': title_mapping.get(day['c1_title'], day['c1_title']),
+            'c2_title_zh': title_mapping.get(day['c2_title'], day['c2_title']),
+        })
     return translated_days
 
-# --- FORMAT WEEKLY MENU ---
+
 def format_menu(timeperiod, days):
     separator = '=' * 56
-    lines = [
+
+    # --- English Menu ---
+    en_lines = [
         f'Nokia Linnanmaa — Weekly Menu  {timeperiod}',
         separator,
         '',
     ]
     for day in days:
-        lines.append(f"  {day['date']}")
-        lines.append(f"    1. FAVOURITES  : {day['c1_title_zh']}")
-        lines.append(f"                     EN: {day['c1_title']}")
-        lines.append(f"                     {day['c1_price']}")
-        lines.append(f"    2. FOOD MARKET : {day['c2_title_zh']}")
-        lines.append(f"                     EN: {day['c2_title']}")
-        lines.append(f"                     {day['c2_price']}")
-        lines.append('')
-    lines.append(separator)
-    return '\n'.join(lines)
+        en_lines.append(f"  {day['date']}")
+        en_lines.append(f"    1. FAVOURITES  : {day['c1_title']}")
+        en_lines.append(f"                     {day['c1_price']}")
+        en_lines.append(f"    2. FOOD MARKET : {day['c2_title']}")
+        en_lines.append(f"                     {day['c2_price']}")
+        en_lines.append('')
+    en_lines.append(separator)
+    en_section = '\n'.join(en_lines)
 
-# --- SEND EMAIL ---
+    # --- Chinese Menu ---
+    zh_lines = [
+        f'Nokia Linnanmaa — 周菜单  {timeperiod} (由AI翻译)',
+        separator,
+        '',
+    ]
+    for day in days:
+        zh_lines.append(f"  {day['date']}")
+        zh_lines.append(f"    1. 最爱菜肴    : {day['c1_title_zh']}")
+        zh_lines.append(f"                     {day['c1_price']}")
+        zh_lines.append(f"    2. 美食市场    : {day['c2_title_zh']}")
+        zh_lines.append(f"                     {day['c2_price']}")
+        zh_lines.append('')
+    zh_lines.append(separator)
+    zh_section = '\n'.join(zh_lines)
+
+    # Combine both versions
+    return en_section + '\n\n' + zh_section
+
+
 def send_menu_email(timeperiod, days):
     subject = f'Nokia Linnanmaa Weekly Menu — {timeperiod}'
     body = format_menu(timeperiod, days)
@@ -133,6 +202,7 @@ def send_menu_email(timeperiod, days):
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(SMTP_USER, EMAIL_LIST, msg.as_string())
+
 
 if __name__ == '__main__':
     timeperiod, days = fetch_menu()
