@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import requests
 import smtplib
 from email.mime.text import MIMEText
@@ -26,13 +27,13 @@ TRANSLATION_PROMPT = (
 )
 
 DAY_NAMES = {
-    'Maanantai': 'Monday',
-    'Tiistai': 'Tuesday',
-    'Keskiviikko': 'Wednesday',
-    'Torstai': 'Thursday',
-    'Perjantai': 'Friday',
-    'Lauantai': 'Saturday',
-    'Sunnuntai': 'Sunday',
+    'Maanantai': 'Monday 周一',
+    'Tiistai': 'Tuesday 周二',
+    'Keskiviikko': 'Wednesday 周三',
+    'Torstai': 'Thursday 周四',
+    'Perjantai': 'Friday 周五',
+    'Lauantai': 'Saturday 周六',
+    'Sunnuntai': 'Sunday 周日',
 }
 
 translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -154,46 +155,31 @@ def translate_days(days):
 
 
 def format_menu(timeperiod, days):
-    separator = '=' * 56
-
-    # --- English Menu ---
-    en_lines = [
-        f'Nokia Linnanmaa Oulu — Weekly Menu  {timeperiod}',
+    separator = '=' * 70
+    lines = [
+        f'Nokia Linnanmaa Oulu — Weekly Menu:{timeperiod}',
+        f'诺基亚 Linnanmaa Oulu — 每周菜单：{timeperiod} (本菜单由{TRANSLATION_MODEL}模型提供AI翻译)',
         separator,
         '',
     ]
-    for day in days:
-        en_lines.append(f"  {day['date']}")
-        en_lines.append(f"    1. FAVOURITES  : {day['c1_title']}")
-        en_lines.append(f"                     {day['c1_price']}")
-        en_lines.append(f"    2. FOOD MARKET : {day['c2_title']}")
-        en_lines.append(f"                     {day['c2_price']}")
-        en_lines.append('')
-    en_lines.append(separator)
-    en_section = '\n'.join(en_lines)
 
-    # --- Chinese Menu ---
-    zh_lines = [
-        f'Nokia Linnanmaa Oulu — 周菜单  {timeperiod} (本菜单由模型step-3.5-flash提供AI翻译)',
-        separator,
-        '',
-    ]
     for day in days:
-        zh_lines.append(f"  {day['date']}")
-        zh_lines.append(f"    1. 最爱菜肴    : {day['c1_title_zh']}")
-        zh_lines.append(f"                     {day['c1_price']}")
-        zh_lines.append(f"    2. 美食市场    : {day['c2_title_zh']}")
-        zh_lines.append(f"                     {day['c2_price']}")
-        zh_lines.append('')
-    zh_lines.append(separator)
-    zh_section = '\n'.join(zh_lines)
+        lines.append(f"  {day['date']}")
+        lines.append(f"    1. FAVOURITES  : {day['c1_title']}")
+        lines.append(f"       最爱菜肴    : {day['c1_title_zh']}")
+        lines.append(f"                     {day['c1_price']}")
+        lines.append('')
+        lines.append(f"    2. FOOD MARKET : {day['c2_title']}")
+        lines.append(f"       美食市场    : {day['c2_title_zh']}")
+        lines.append(f"                     {day['c2_price']}")
+        lines.append('')
 
-    # Combine both versions
-    return en_section + '\n\n' + zh_section
+    lines.append(separator)
+    return '\n'.join(lines)
 
 
 def send_menu_email(timeperiod, days):
-    subject = f'Nokia Linnanmaa Weekly Menu — {timeperiod}'
+    subject = f'Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
     body = format_menu(timeperiod, days)
     msg = MIMEMultipart()
     msg['From'] = SMTP_USER
