@@ -72,11 +72,13 @@ def translate_menu_bulk(titles_en):
                 {
                     'role': 'system',
                     'content': (
-                        'You are a professional menu translator. '
-                        'I will give you a list of English dish titles (one per line). '
-                        'Translate each to Simplified Chinese (one per line). '
-                        'Keep diet labels like (L,G), (M,G,V), numbers, and punctuation. '
-                        'Return ONLY the translated titles, one per line, same order.'
+                        'You are a professional and culturally-aware restaurant menu translator.'
+                        'I will provide a list of English dish titles (one per line).'
+                        'Translate each title into **natural, common, and appealing Simplified Chinese restaurant menu names**.'
+                        'Ensure the translation reflects authentic culinary terminology and avoids literal or awkward phrasing.'
+                        'Crucially, preserve all dietary labels (e.g., (L,G), (M,G,V)), numbers, and punctuation exactly as they appear.'
+                        'Maintain the original order, one translated title per line.'
+                        'Return ONLY the translated Chinese titles, with nothing else.'
                     )
                 },
                 {'role': 'user', 'content': bulk_text},
@@ -156,7 +158,7 @@ def format_menu(timeperiod, days):
 
     # --- English Menu ---
     en_lines = [
-        f'Nokia Linnanmaa — Weekly Menu  {timeperiod}',
+        f'Nokia Linnanmaa Oulu — Weekly Menu  {timeperiod}',
         separator,
         '',
     ]
@@ -172,7 +174,7 @@ def format_menu(timeperiod, days):
 
     # --- Chinese Menu ---
     zh_lines = [
-        f'Nokia Linnanmaa — 周菜单  {timeperiod} (由AI翻译)',
+        f'Nokia Linnanmaa Oulu — 周菜单  {timeperiod} (本菜单由模型step-3.5-flash提供AI翻译)',
         separator,
         '',
     ]
