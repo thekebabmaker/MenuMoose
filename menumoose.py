@@ -13,6 +13,7 @@ with open('config.yml', 'r', encoding='utf-8') as f:
 
 # Email recipients from config file (visible and version-controlled)
 EMAIL_LIST = CONFIG['recipients']
+RECIPIENTS = [email.strip() for email in EMAIL_LIST if email and email.strip()]
 
 # SMTP from config file
 SMTP_SERVER = CONFIG['smtp']['server']
@@ -216,15 +217,19 @@ def format_menu(timeperiod, days):
 def send_menu_email(timeperiod, days):
     subject = f'🍽️ Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
     body = format_menu(timeperiod, days)
+    if not RECIPIENTS:
+        raise ValueError('No recipients configured in config.yml (recipients).')
+
     msg = MIMEMultipart()
     msg['From'] = SMTP_USER
-    msg['To'] = ', '.join(EMAIL_LIST)
+    # Keep recipients private: do not expose subscriber addresses in email headers.
+    msg['To'] = 'undisclosed-recipients:;'
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_USER, EMAIL_LIST, msg.as_string())
+        server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
 
 
 if __name__ == '__main__':
