@@ -27,13 +27,13 @@ TRANSLATION_PROMPT = (
 )
 
 DAY_NAMES = {
-    'Maanantai': 'Monday 周一',
-    'Tiistai': 'Tuesday 周二',
-    'Keskiviikko': 'Wednesday 周三',
-    'Torstai': 'Thursday 周四',
-    'Perjantai': 'Friday 周五',
-    'Lauantai': 'Saturday 周六',
-    'Sunnuntai': 'Sunday 周日',
+    'Maanantai': '📅 Monday / 周一',
+    'Tiistai': '📅 Tuesday / 周二',
+    'Keskiviikko': '📅 Wednesday / 周三',
+    'Torstai': '📅 Thursday / 周四',
+    'Perjantai': '📅 Friday / 周五',
+    'Lauantai': '📅 Saturday / 周六',
+    'Sunnuntai': '📅 Sunday / 周日',
 }
 
 translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -155,31 +155,44 @@ def translate_days(days):
 
 
 def format_menu(timeperiod, days):
-    separator = '=' * 70
+    border = '═' * 52
+    thin   = '─' * 52
+
     lines = [
-        f'Nokia Linnanmaa Oulu — Weekly Menu:{timeperiod}',
-        f'诺基亚 Linnanmaa Oulu — 每周菜单：{timeperiod} (本菜单由{TRANSLATION_MODEL}模型提供AI翻译)',
-        separator,
+        f'╔{border}╗',
+        f'║  Nokia Linnanmaa Oulu — Weekly Menu / 每周菜单',
+        f'║  {timeperiod}',
+        f'╚{border}╝',
         '',
     ]
 
-    for day in days:
-        lines.append(f"  {day['date']}")
-        lines.append(f"    1. FAVOURITES  : {day['c1_title']}")
-        lines.append(f"       最爱菜肴    : {day['c1_title_zh']}")
-        lines.append(f"                     {day['c1_price']}")
+    for i, day in enumerate(days):
+        lines.append(f'  {day["date"]}')
+        lines.append(f'  {thin}')
+        lines.append(f'    🌟 FAVOURITES')
+        lines.append(f'       EN : {day["c1_title"]}')
+        lines.append(f'       中 : {day["c1_title_zh"]}')
+        lines.append(f'       💰 {day["c1_price"]}')
         lines.append('')
-        lines.append(f"    2. FOOD MARKET : {day['c2_title']}")
-        lines.append(f"       美食市场    : {day['c2_title_zh']}")
-        lines.append(f"                     {day['c2_price']}")
-        lines.append('')
+        lines.append(f'    🛒 FOOD MARKET')
+        lines.append(f'       EN : {day["c2_title"]}')
+        lines.append(f'       中 : {day["c2_title_zh"]}')
+        lines.append(f'       💰 {day["c2_price"]}')
+        if i < len(days) - 1:
+            lines.append('')
+            lines.append('')
 
-    lines.append(separator)
+    lines.append('')
+    lines.append(f'  {thin}')
+    lines.append(f'  🤖 中文翻译由 {TRANSLATION_MODEL} 模型提供')
+    lines.append(f'  🔗 菜单来源: www.sodexo.fi/ravintolat/nokia-linnanmaa')
+    lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
+    lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)
 
 
 def send_menu_email(timeperiod, days):
-    subject = f'Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
+    subject = f'🍽️ Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
     body = format_menu(timeperiod, days)
     msg = MIMEMultipart()
     msg['From'] = SMTP_USER
