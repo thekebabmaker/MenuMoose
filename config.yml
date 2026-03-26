@@ -1,0 +1,35 @@
+# MenuMoose Configuration
+
+# Recipients for weekly menu email
+# Format: comma-separated email addresses
+recipients:
+  - qiang.1.huang@nokia.com
+  # - jiao.wang@nokia.com
+  # - lingyan.jiang@nokia.com
+  # - qiuxiang.yang@nokia.com
+
+# Sodexo Menu API URL
+menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
+
+# SMTP configuration (server, port, and user are here; password stays in GitHub Secrets)
+smtp:
+  server: "smtp.gmail.com"
+  port: 587
+  # user and password come from GitHub Secrets
+
+# Translation settings
+translation:
+  model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI
+  api_base: "https://openrouter.ai/api/v1"
+  # api_key comes from GitHub Secrets
+
+# Menu details
+restaurant:
+  name: "Nokia Linnanmaa Oulu"
+  url: "https://www.sodexo.fi/ravintolat/nokia-linnanmaa"
+
+# Leftover mystery box info
+mystery_box:
+  enabled: true
+  time: "Mon - Fri, 13.00-13.10"
+  price: "7,70€/kg"

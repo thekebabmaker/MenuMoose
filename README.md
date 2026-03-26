@@ -2,7 +2,7 @@
 
 自动每周获取诺基亚 Linnanmaa 食堂菜单，通过 AI 翻译成中文，并发送邮件到订阅用户。
 
-**English:** Automated weekly lunch menu sender for Sodexo Nokia Linnanmaa. Fetches the weekly JSON menu every Monday morning, translates English dishes to Chinese via AI, and emails bilingual menu to subscribers.
+Automated weekly lunch menu sender for Sodexo Nokia Linnanmaa. Fetches the weekly JSON menu every Monday morning, translates English dishes to Chinese via AI, and emails bilingual menu to subscribers.
 
 ---
 

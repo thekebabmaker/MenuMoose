@@ -4,20 +4,30 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import yaml
 from openai import OpenAI
 
-EMAIL_LIST = os.environ.get('MENU_EMAIL_LIST', '').split(',')  # comma-separated
-SMTP_SERVER = os.environ.get('MENU_SMTP_SERVER', 'smtp.example.com')
-SMTP_PORT = int(os.environ.get('MENU_SMTP_PORT', '587'))
-SMTP_USER = os.environ.get('MENU_SMTP_USER', 'user@example.com')
-SMTP_PASS = os.environ.get('MENU_SMTP_PASS', 'password')
+# Load configuration from config.yml
+with open('config.yml', 'r', encoding='utf-8') as f:
+    CONFIG = yaml.safe_load(f)
 
-MENU_JSON_URL = 'https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223'
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '').strip()
+# Email recipients from config file (visible and version-controlled)
+EMAIL_LIST = CONFIG['recipients']
 
-# TRANSLATION_MODEL = 'openrouter/free'
-TRANSLATION_MODEL  = 'stepfun/step-3.5-flash:free'
-MODEL_URL = 'https://openrouter.ai/api/v1'
+# SMTP from config file
+SMTP_SERVER = CONFIG['smtp']['server']
+SMTP_PORT = CONFIG['smtp']['port']
+SMTP_USER = os.environ.get('MENU_SMTP_USER')  # From GitHub Secrets
+SMTP_PASS = os.environ.get('MENU_SMTP_PASS')  # From GitHub Secrets
+
+# URLs and API config from config file
+MENU_JSON_URL = CONFIG['menu_url']
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # From GitHub Secrets
+TRANSLATION_MODEL = CONFIG['translation']['model']
+MODEL_URL = CONFIG['translation']['api_base']
+RESTAURANT_NAME = CONFIG['restaurant']['name']
+RESTAURANT_URL = CONFIG['restaurant']['url']
+MYSTERY_BOX = CONFIG['mystery_box']
 
 TRANSLATION_PROMPT = (
     'You are a professional menu translator. '
@@ -53,8 +63,16 @@ def translate_menu_bulk(titles_en):
     if not titles_en or translation_client is None:
         return {title: title for title in titles_en}
 
-    # Filter out N/A values
-    titles_to_translate = [t for t in set(titles_en) if t and t != 'N/A']
+    # Keep original order while deduplicating, so translations map correctly.
+    seen = set()
+    titles_to_translate = []
+    for t in titles_en:
+        if not t or t == 'N/A':
+            continue
+        if t in seen:
+            continue
+        seen.add(t)
+        titles_to_translate.append(t)
     if not titles_to_translate:
         return {title: title for title in titles_en}
 
@@ -87,7 +105,11 @@ def translate_menu_bulk(titles_en):
             temperature=0,
         )
         translated_text = (response.choices[0].message.content or '').strip()
-        translated_lines = translated_text.split('\n')
+        translated_lines = [line.strip() for line in translated_text.split('\n') if line.strip()]
+
+        # If model output line count is unexpected, fall back to originals for safety.
+        if len(translated_lines) != len(uncached):
+            translated_lines = uncached
     except Exception:
         translated_lines = uncached  # Fallback to original
 
@@ -170,13 +192,13 @@ def format_menu(timeperiod, days):
         lines.append(f'  {day["date"]}')
         lines.append(f'  {thin}')
         lines.append(f'    🌟 FAVOURITES')
-        lines.append(f'       EN : {day["c1_title"]}')
-        lines.append(f'       中 : {day["c1_title_zh"]}')
+        lines.append(f'       {day["c1_title"]}')
+        lines.append(f'       {day["c1_title_zh"]}')
         lines.append(f'       💰 {day["c1_price"]}')
         lines.append('')
         lines.append(f'    🛒 FOOD MARKET')
-        lines.append(f'       EN : {day["c2_title"]}')
-        lines.append(f'       中 : {day["c2_title_zh"]}')
+        lines.append(f'       {day["c2_title"]}')
+        lines.append(f'       {day["c2_title_zh"]}')
         lines.append(f'       💰 {day["c2_price"]}')
         if i < len(days) - 1:
             lines.append('')
@@ -185,7 +207,7 @@ def format_menu(timeperiod, days):
     lines.append('')
     lines.append(f'  {thin}')
     lines.append(f'  🤖 中文翻译由 {TRANSLATION_MODEL} 模型提供')
-    lines.append(f'  🔗 菜单来源: www.sodexo.fi/ravintolat/nokia-linnanmaa')
+    lines.append(f'  🔗 菜单来源: {RESTAURANT_URL}')
     lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
     lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)

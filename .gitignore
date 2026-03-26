@@ -25,3 +25,6 @@ Thumbs.db
 *.log
 cache/
 translation_cache.json
+
+# NOTE: config.yml is intentionally NOT ignored
+# It contains non-sensitive configuration and should be version-controlled
