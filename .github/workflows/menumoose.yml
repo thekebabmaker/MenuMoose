@@ -17,7 +17,7 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
-          pip install requests openai
+          pip install requests openai PyYAML
       - name: Run menumoose
         env:
           MENU_EMAIL_LIST: ${{ secrets.MENU_EMAIL_LIST }}
