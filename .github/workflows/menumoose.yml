@@ -20,9 +20,6 @@ jobs:
           pip install requests openai PyYAML
       - name: Run menumoose
         env:
-          MENU_EMAIL_LIST: ${{ secrets.MENU_EMAIL_LIST }}
-          MENU_SMTP_SERVER: ${{ secrets.MENU_SMTP_SERVER }}
-          MENU_SMTP_PORT: ${{ secrets.MENU_SMTP_PORT }}
           MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
           MENU_SMTP_PASS: ${{ secrets.MENU_SMTP_PASS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

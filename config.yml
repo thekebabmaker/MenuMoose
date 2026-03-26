@@ -4,9 +4,10 @@
 # Format: comma-separated email addresses
 recipients:
   - qiang.1.huang@nokia.com
-  # - jiao.wang@nokia.com
-  # - lingyan.jiang@nokia.com
-  # - qiuxiang.yang@nokia.com
+  - jiao.wang@nokia.com
+  - lingyan.jiang@nokia.com
+  - qiuxiang.yang@nokia.com
+  - tuanbin.liu@nokia.com
 
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"

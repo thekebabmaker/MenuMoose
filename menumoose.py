@@ -177,8 +177,8 @@ def translate_days(days):
 
 
 def format_menu(timeperiod, days):
-    border = '═' * 52
-    thin   = '─' * 52
+    border = '═' * 50
+    thin   = '─' * 66
 
     lines = [
         f'╔{border}╗',
@@ -207,7 +207,7 @@ def format_menu(timeperiod, days):
     lines.append('')
     lines.append(f'  {thin}')
     lines.append(f'  🤖 中文翻译由 {TRANSLATION_MODEL} 模型提供')
-    lines.append(f'  🔗 菜单来源: {RESTAURANT_URL}')
+    lines.append(f'  🔗 菜单来源: sodexo.fi -> ravintolat -> nokia-linnanmaa')
     lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
     lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)
