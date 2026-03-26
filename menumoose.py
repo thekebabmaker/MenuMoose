@@ -209,6 +209,9 @@ def format_menu(timeperiod, days):
         f'║  {timeperiod}',
         f'╚{border}╝',
         '',
+        '  饮食标签说明:',
+        '  G: Gluten free无麸质  L: Lactose free无乳糖  M: Milk-free无奶制品  VL: Low lactose低乳糖',
+        '',
     ]
 
     for i, day in enumerate(days):
@@ -239,7 +242,7 @@ def format_menu(timeperiod, days):
     lines.append(f'  🤖 中文服务由 {TRANSLATION_MODEL} 模型提供')
     lines.append(f'  🔗 菜单来源: sodexo.fi -> ravintolat -> nokia-linnanmaa')
     lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
-    lines.append(f'      Bon appétit! 祝您用餐愉快！')
+    lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)
 
 
