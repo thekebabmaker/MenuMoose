@@ -4,6 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import re
 import yaml
 from openai import OpenAI
 
@@ -49,6 +50,25 @@ DAY_NAMES = {
 
 translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 translation_cache = {}
+
+
+def _clean_translation_lines(raw_text):
+    """Normalize model output lines so minor format drift won't break mapping."""
+    text = (raw_text or '').strip()
+    if text.startswith('```'):
+        text = text.strip('`')
+        text = text.replace('text', '', 1).replace('markdown', '', 1).replace('json', '', 1).strip()
+
+    lines = []
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        # Remove common list prefixes like "1. ", "- ", "* " etc.
+        line = re.sub(r'^\s*(?:[-*•]|\d+[\.)])\s*', '', line)
+        if line:
+            lines.append(line)
+    return lines
 
 
 def translate_menu_bulk(titles_en):
@@ -105,12 +125,14 @@ def translate_menu_bulk(titles_en):
             ],
             temperature=0,
         )
-        translated_text = (response.choices[0].message.content or '').strip()
-        translated_lines = [line.strip() for line in translated_text.split('\n') if line.strip()]
+        translated_text = response.choices[0].message.content or ''
+        translated_lines = _clean_translation_lines(translated_text)
 
-        # If model output line count is unexpected, fall back to originals for safety.
-        if len(translated_lines) != len(uncached):
-            translated_lines = uncached
+        # Keep partial success: truncate extras and pad missing with originals.
+        if len(translated_lines) > len(uncached):
+            translated_lines = translated_lines[:len(uncached)]
+        elif len(translated_lines) < len(uncached):
+            translated_lines.extend(uncached[len(translated_lines):])
     except Exception:
         translated_lines = uncached  # Fallback to original
 
@@ -190,16 +212,23 @@ def format_menu(timeperiod, days):
     ]
 
     for i, day in enumerate(days):
+        c1_zh = day["c1_title_zh"]
+        c2_zh = day["c2_title_zh"]
+        if c1_zh == day["c1_title"]:
+            c1_zh = f'{c1_zh}（翻译失败）'
+        if c2_zh == day["c2_title"]:
+            c2_zh = f'{c2_zh}（翻译失败）'
+
         lines.append(f'  {day["date"]}')
         lines.append(f'  {thin}')
         lines.append(f'    🌟 FAVOURITES')
         lines.append(f'       {day["c1_title"]}')
-        lines.append(f'       {day["c1_title_zh"]}')
+        lines.append(f'       {c1_zh}')
         lines.append(f'       💰 {day["c1_price"]}')
         lines.append('')
         lines.append(f'    🛒 FOOD MARKET')
         lines.append(f'       {day["c2_title"]}')
-        lines.append(f'       {day["c2_title_zh"]}')
+        lines.append(f'       {c2_zh}')
         lines.append(f'       💰 {day["c2_price"]}')
         if i < len(days) - 1:
             lines.append('')
@@ -210,8 +239,7 @@ def format_menu(timeperiod, days):
     lines.append(f'  🤖 中文服务由 {TRANSLATION_MODEL} 模型提供')
     lines.append(f'  🔗 菜单来源: sodexo.fi -> ravintolat -> nokia-linnanmaa')
     lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
-    lines.append(f'  \n')
-    lines.append(f'  Bon appétit! 祝您用餐愉快！')
+    lines.append(f'      Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)
 
 
