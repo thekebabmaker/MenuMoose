@@ -207,10 +207,11 @@ def format_menu(timeperiod, days):
 
     lines.append('')
     lines.append(f'  {thin}')
-    lines.append(f'  🤖 中文翻译由 {TRANSLATION_MODEL} 模型提供')
+    lines.append(f'  🤖 中文服务由 {TRANSLATION_MODEL} 模型提供')
     lines.append(f'  🔗 菜单来源: sodexo.fi -> ravintolat -> nokia-linnanmaa')
     lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
-    lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
+    lines.append(f'  \n')
+    lines.append(f'  Bon appétit! 祝您用餐愉快！')
     return '\n'.join(lines)
 
 
