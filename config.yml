@@ -4,10 +4,10 @@
 # Format: comma-separated email addresses
 recipients:
   - qiang.1.huang@nokia.com
-  - jiao.wang@nokia.com
-  - lingyan.jiang@nokia.com
-  - qiuxiang.yang@nokia.com
-  - tuanbin.liu@nokia.com
+  # - jiao.wang@nokia.com
+  # - lingyan.jiang@nokia.com
+  # - qiuxiang.yang@nokia.com
+  # - tuanbin.liu@nokia.com
 
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
@@ -15,13 +15,15 @@ menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
 # SMTP configuration (server, port, and user are here; password stays in GitHub Secrets)
 smtp:
   server: "smtp.gmail.com"
-  port: 587
+  port: 465
   # user and password come from GitHub Secrets
 
 # Translation settings
 translation:
   model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI
   api_base: "https://openrouter.ai/api/v1"
+  api_base_aliyun: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  api_key_aliyun: "sk-bcaa30b3662c4dfdaa8fe289e2eaabfe"
   # api_key comes from GitHub Secrets
 
 # Menu details

@@ -5,7 +5,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import re
+import ssl
 import yaml
+import httpx
 from openai import OpenAI
 
 # Load configuration from config.yml
@@ -39,16 +41,33 @@ TRANSLATION_PROMPT = (
 )
 
 DAY_NAMES = {
-    'Maanantai': '📅 Monday / 周一',
-    'Tiistai': '📅 Tuesday / 周二',
-    'Keskiviikko': '📅 Wednesday / 周三',
-    'Torstai': '📅 Thursday / 周四',
-    'Perjantai': '📅 Friday / 周五',
-    'Lauantai': '📅 Saturday / 周六',
-    'Sunnuntai': '📅 Sunday / 周日',
+    'Maanantai': '📅 MONDAY · 周一',
+    'Tiistai': '📅 TUESDAY · 周二',
+    'Keskiviikko': '📅 WEDNESDAY · 周三',
+    'Torstai': '📅 THURSDAY · 周四',
+    'Perjantai': '📅 FRIDAY · 周五',
+    'Lauantai': '📅 SATURDAY · 周六',
+    'Sunnuntai': '📅 SUNDAY · 周日',
 }
 
-translation_client = OpenAI(base_url=MODEL_URL, api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+def _make_openai_client(base_url, api_key):
+    """Create OpenAI client using system CA bundle.
+    Works on both local machines (where Zscaler installs its CA into the system
+    trust store) and GitHub Actions runners (standard Ubuntu CAs).
+    httpx uses certifi by default which may not include corporate proxy CAs.
+    """
+    paths = ssl.get_default_verify_paths()
+    system_ca = paths.cafile or paths.openssl_cafile
+    if system_ca:
+        print(f'  [openai] Using CA bundle: {system_ca}', flush=True)
+        http_client = httpx.Client(verify=system_ca)
+        return OpenAI(base_url=base_url, api_key=api_key, http_client=http_client)
+    else:
+        print('  [openai] No system CA found, using certifi default', flush=True)
+        return OpenAI(base_url=base_url, api_key=api_key)
+
+
+translation_client = _make_openai_client(MODEL_URL, OPENAI_API_KEY) if OPENAI_API_KEY else None
 translation_cache = {}
 
 
@@ -105,6 +124,7 @@ def translate_menu_bulk(titles_en):
     # Build bulk payload: one title per line
     bulk_text = '\n'.join(uncached)
 
+    print(f'  [translate] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(uncached)} titles...', flush=True)
     try:
         response = translation_client.chat.completions.create(
             model=TRANSLATION_MODEL,
@@ -126,6 +146,7 @@ def translate_menu_bulk(titles_en):
             temperature=0,
         )
         translated_text = response.choices[0].message.content or ''
+        print(f'  [translate] API response received ({len(translated_text)} chars)', flush=True)
         translated_lines = _clean_translation_lines(translated_text)
 
         # Keep partial success: truncate extras and pad missing with originals.
@@ -133,7 +154,8 @@ def translate_menu_bulk(titles_en):
             translated_lines = translated_lines[:len(uncached)]
         elif len(translated_lines) < len(uncached):
             translated_lines.extend(uncached[len(translated_lines):])
-    except Exception:
+    except Exception as e:
+        print(f'  [translate] API call failed: {e}', flush=True)
         translated_lines = uncached  # Fallback to original
 
     # Map results back to cache
@@ -152,9 +174,17 @@ def translate_menu_bulk(titles_en):
 
 
 def fetch_menu():
+    print(f'  [fetch_menu] GET {MENU_JSON_URL}', flush=True)
     resp = requests.get(MENU_JSON_URL, timeout=15)
     resp.raise_for_status()
+    print(f'  [fetch_menu] HTTP {resp.status_code}, {len(resp.content)} bytes', flush=True)
     data = resp.json()
+
+    def split_items(title_en):
+        """Split a course title into individual dish names (separated by ' / ')."""
+        if not title_en or title_en.strip() == 'N/A':
+            return []
+        return [t.strip() for t in title_en.split('/') if t.strip()]
 
     timeperiod = data.get('timeperiod', 'N/A')
     days = []
@@ -165,9 +195,9 @@ def fetch_menu():
         c2 = courses.get('2', {})
         days.append({
             'date': DAY_NAMES.get(date_fi, date_fi),
-            'c1_title': c1.get('title_en', 'N/A'),
+            'c1_items': split_items(c1.get('title_en', '')),
             'c1_price': c1.get('price', 'N/A'),
-            'c2_title': c2.get('title_en', 'N/A'),
+            'c2_items': split_items(c2.get('title_en', '')),
             'c2_price': c2.get('price', 'N/A'),
         })
     return timeperiod, days
@@ -177,13 +207,11 @@ def translate_days(days):
     """
     Translate all dish titles in one bulk API call, then map back to days.
     """
-    # Collect all English titles
+    # Collect all individual English titles (c1 and c2 are now lists)
     titles_en = []
     for day in days:
-        if day['c1_title'] and day['c1_title'] != 'N/A':
-            titles_en.append(day['c1_title'])
-        if day['c2_title'] and day['c2_title'] != 'N/A':
-            titles_en.append(day['c2_title'])
+        titles_en.extend(day['c1_items'])
+        titles_en.extend(day['c2_items'])
 
     # Translate all at once
     title_mapping = translate_menu_bulk(titles_en)
@@ -193,56 +221,59 @@ def translate_days(days):
     for day in days:
         translated_days.append({
             **day,
-            'c1_title_zh': title_mapping.get(day['c1_title'], day['c1_title']),
-            'c2_title_zh': title_mapping.get(day['c2_title'], day['c2_title']),
+            'c1_items_zh': [title_mapping.get(t, t) for t in day['c1_items']],
+            'c2_items_zh': [title_mapping.get(t, t) for t in day['c2_items']],
         })
     return translated_days
 
 
 def format_menu(timeperiod, days):
-    border = '═' * 50
-    thin   = '─' * 66
+    border = '━' * 30
+    thin   = '─' * 50
 
     lines = [
-        f'╔{border}╗',
-        f'║  Nokia Linnanmaa Oulu — Weekly Menu / 每周菜单',
-        f'║  {timeperiod}',
-        f'╚{border}╝',
+        f'┏{border}┓',
+        f'   NOKIA LINNANMAA OULU  |  Weekly Menu 每周菜单',
+        f'   {timeperiod}',
+        f'┗{border}┛',
         '',
-        '  饮食标签说明:',
-        '  G: Gluten free无麸质  L: Lactose free无乳糖  M: Milk-free无奶制品  VL: Low lactose低乳糖',
+        '饮食标签 | DIET LABELS',
+        'G: Gluten free 无麸质  L: Lactose free 无乳糖  M: Milk-free 无奶制品  VL: Low lactose 低乳糖',
         '',
     ]
 
-    for i, day in enumerate(days):
-        c1_zh = day["c1_title_zh"]
-        c2_zh = day["c2_title_zh"]
-        if c1_zh == day["c1_title"]:
-            c1_zh = f'{c1_zh}（翻译失败）'
-        if c2_zh == day["c2_title"]:
-            c2_zh = f'{c2_zh}（翻译失败）'
+    for day in days:
+        lines.append(day['date'])
+        lines.append(thin)
 
-        lines.append(f'  {day["date"]}')
-        lines.append(f'  {thin}')
-        lines.append(f'    🌟 FAVOURITES')
-        lines.append(f'       {day["c1_title"]}')
-        lines.append(f'       {c1_zh}')
-        lines.append(f'       💰 {day["c1_price"]}')
+        # FAVOURITES
+        lines.append(f'🌟 FAVOURITES  |  {day["c1_price"]}')
+        for en, zh in zip(day['c1_items'], day['c1_items_zh']):
+            failed = (en == zh)
+            lines.append(f'   • {en}')
+            lines.append(f'     {zh}{"（翻译失败）" if failed else ""}')
+
         lines.append('')
-        lines.append(f'    🛒 FOOD MARKET')
-        lines.append(f'       {day["c2_title"]}')
-        lines.append(f'       {c2_zh}')
-        lines.append(f'       💰 {day["c2_price"]}')
-        if i < len(days) - 1:
-            lines.append('')
-            lines.append('')
 
-    lines.append('')
-    lines.append(f'  {thin}')
-    lines.append(f'  🤖 中文服务由 {TRANSLATION_MODEL} 模型提供')
-    lines.append(f'  🔗 菜单来源: sodexo.fi -> ravintolat -> nokia-linnanmaa')
-    lines.append(f'  📦 剩菜盲盒: 周一到周五, 13.00-13.10, 7,70€/kg')
-    lines.append(f'  📬 Bon appétit! 祝您用餐愉快！')
+        # FOOD MARKET
+        lines.append(f'🛒 FOOD MARKET  |  {day["c2_price"]}')
+        for en, zh in zip(day['c2_items'], day['c2_items_zh']):
+            failed = (en == zh)
+            lines.append(f'   • {en}')
+            lines.append(f'     {zh}{"（翻译失败）" if failed else ""}')
+
+        lines.append('')
+        lines.append(thin)
+        lines.append('')
+
+    lines += [
+        '💡 温馨提示 | SERVICE INFO',
+        f'• 剩菜盲盒 (Leftover Box): 13:00 - 13:10 | 7,70€/kg',
+        f'• 菜单来源: sodexo.fi (Nokia Linnanmaa)',
+        f'• Powered by: MenuMoose🦌 & {TRANSLATION_MODEL} ',
+        '',
+        'Bon appétit! 祝您用餐愉快！',
+    ]
     return '\n'.join(lines)
 
 
@@ -258,13 +289,36 @@ def send_menu_email(timeperiod, days):
     msg['To'] = 'undisclosed-recipients:;'
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
+    print(f'  [smtp] Connecting to {SMTP_SERVER}:{SMTP_PORT}...', flush=True)
+    paths = ssl.get_default_verify_paths()
+    system_ca = paths.cafile or paths.openssl_cafile
+    ssl_ctx = ssl.create_default_context(cafile=system_ca)
+    if SMTP_PORT == 465:
+        # Port 465: direct SSL (SMTPS), no STARTTLS needed
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=30, context=ssl_ctx) as server:
+            print(f'  [smtp] Logging in as {SMTP_USER}...', flush=True)
+            server.login(SMTP_USER, SMTP_PASS)
+            print(f'  [smtp] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
+            server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
+    else:
+        # Port 587: STARTTLS upgrade with system CA (handles Zscaler MITM cert)
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
+            print('  [smtp] Starting TLS...', flush=True)
+            server.starttls(context=ssl_ctx)
+            print(f'  [smtp] Logging in as {SMTP_USER}...', flush=True)
+            server.login(SMTP_USER, SMTP_PASS)
+            print(f'  [smtp] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
+            server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
 
 
 if __name__ == '__main__':
+    print('[1/4] Fetching menu...', flush=True)
     timeperiod, days = fetch_menu()
+    print(f'[2/4] Menu fetched: {timeperiod}, {len(days)} days', flush=True)
+
+    print('[3/4] Translating menu...', flush=True)
     days = translate_days(days)
+    print('[4/4] Translation done. Sending email...', flush=True)
+
     send_menu_email(timeperiod, days)
+    print('Done. Email sent successfully.', flush=True)

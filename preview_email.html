@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nokia Linnanmaa — Weekly Menu</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f0f2f5;
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      color: #1a1a1a;
+    }
+
+    .wrapper {
+      max-width: 620px;
+      margin: 32px auto;
+      background: #ffffff;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #005AFF;
+      padding: 28px 32px 24px;
+      position: relative;
+    }
+    .header-logo {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+    .header-period {
+      margin-top: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Diet labels ── */
+    .diet-bar {
+      background: #f7f8fa;
+      border-bottom: 1px solid #eaecef;
+      padding: 10px 32px;
+      font-size: 11px;
+      color: #6b7280;
+      letter-spacing: 0.2px;
+    }
+    .diet-bar b { color: #1a1a1a; }
+
+    /* ── Day block ── */
+    .day-block {
+      border-bottom: 1px solid #eaecef;
+    }
+    .day-header {
+      background: #fafbfc;
+      padding: 14px 32px 12px;
+      border-left: 4px solid #005AFF;
+    }
+    .day-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #005AFF;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── Course section ── */
+    .course {
+      padding: 16px 32px;
+      border-bottom: 1px solid #f0f2f5;
+    }
+    .course:last-child { border-bottom: none; }
+
+    .course-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .course-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    .course-price {
+      font-size: 13px;
+      font-weight: 700;
+      color: #005AFF;
+      background: #e8f0ff;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── Dish item ── */
+    .dish {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .dish:last-child { margin-bottom: 0; }
+    .dish-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #005AFF;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .dish-en {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #1a1a1a;
+      line-height: 1.4;
+    }
+    .dish-zh {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: #1a1a1a;
+      padding: 20px 32px;
+      color: rgba(255,255,255,0.55);
+      font-size: 11px;
+      line-height: 1.9;
+    }
+    .footer a { color: #4d8aff; text-decoration: none; }
+    .footer .footer-row { display: flex; gap: 8px; align-items: baseline; }
+    .footer .label {
+      color: rgba(255,255,255,0.25);
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .sign-off {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">Nokia · Linnanmaa Oulu</div>
+    <div class="header-title">Weekly Menu &nbsp;/&nbsp; 每周菜单</div>
+    <div class="header-period">23.3. — 29.3.&nbsp;&nbsp;·&nbsp;&nbsp;Week 13</div>
+  </div>
+
+  <!-- Diet bar -->
+  <div class="diet-bar">
+    <b>G</b> Gluten free 无麸质 &nbsp;·&nbsp;
+    <b>L</b> Lactose free 无乳糖 &nbsp;·&nbsp;
+    <b>M</b> Milk-free 无奶制品 &nbsp;·&nbsp;
+    <b>VL</b> Low lactose 低乳糖
+  </div>
+
+  <!-- Monday -->
+  <div class="day-block">
+    <div class="day-header">
+      <div class="day-name">📅 Monday · 周一</div>
+    </div>
+
+    <div class="course">
+      <div class="course-header">
+        <span class="course-title">🌟 Favourites</span>
+        <span class="course-price">8,80 €</span>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Pork stew with honey &amp; beet root (G,L)</div>
+          <div class="dish-zh">蜂蜜甜菜根炖猪肉</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Spicy lentil stew (G,M)</div>
+          <div class="dish-zh">辣扁豆炖菜</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="course">
+      <div class="course-header">
+        <span class="course-title">🛒 Food Market</span>
+        <span class="course-price">11,80 €</span>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Pan patty with cream sauce (G,L)</div>
+          <div class="dish-zh">香煎肉饼配奶油酱</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Vegetable patties with herb yogurt (G,L)</div>
+          <div class="dish-zh">蔬菜饼配香草酸奶</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tuesday -->
+  <div class="day-block">
+    <div class="day-header">
+      <div class="day-name">📅 Tuesday · 周二</div>
+    </div>
+
+    <div class="course">
+      <div class="course-header">
+        <span class="course-title">🌟 Favourites</span>
+        <span class="course-price">8,80 €</span>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Red Thai curry with chicken (M,G)</div>
+          <div class="dish-zh">泰式红咖喱鸡</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Lentil-vegetable bolognese (M,G)</div>
+          <div class="dish-zh">扁豆蔬菜波隆那酱</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="course">
+      <div class="course-header">
+        <span class="course-title">🛒 Food Market</span>
+        <span class="course-price">11,80 €</span>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Pork schnitzel &amp; chili mayo (M)</div>
+          <div class="dish-zh">德式炸猪排配辣味蛋黄酱</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-dot"></div>
+        <div>
+          <div class="dish-en">Vegetable moussaka (L)</div>
+          <div class="dish-zh">蔬菜慕萨卡</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-row">
+      <span class="label">盲盒</span>
+      剩菜盲盒 (Leftover Box)&nbsp;&nbsp;13:00 – 13:10&nbsp;&nbsp;·&nbsp;&nbsp;7,70 €/kg
+    </div>
+    <div class="footer-row">
+      <span class="label">来源</span>
+      <a href="https://www.sodexo.fi/ravintolat/nokia-linnanmaa">sodexo.fi · Nokia Linnanmaa</a>
+    </div>
+    <div class="footer-row">
+      <span class="label">AI</span>
+      Powered by stepfun/step-3.5-flash &amp; MenuMoose 🦌
+    </div>
+    <div class="sign-off">Bon appétit! &nbsp;祝您用餐愉快！</div>
+  </div>
+
+</div>
+</body>
+</html>
