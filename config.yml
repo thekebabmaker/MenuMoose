@@ -8,6 +8,7 @@ recipients:
   # - lingyan.jiang@nokia.com
   # - qiuxiang.yang@nokia.com
   # - tuanbin.liu@nokia.com
+  # - zhong.1.zhuang@nokia.com
 
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
@@ -20,11 +21,11 @@ smtp:
 
 # Translation settings
 translation:
-  model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI
+  # model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI
+  model: "qwen3.5-plus"
   api_base: "https://openrouter.ai/api/v1"
-  api_base_aliyun: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  api_key_aliyun: "sk-bcaa30b3662c4dfdaa8fe289e2eaabfe"
-  # api_key comes from GitHub Secrets
+  aliyun_api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+   # api_key comes from GitHub Secrets
 
 # Menu details
 restaurant:

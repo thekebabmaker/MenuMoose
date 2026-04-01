@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Nokia Linnanmaa Weekly Menu</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			background: #f4f6f8;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+			color: #1d1d1f;
+		}
+
+		.wrapper {
+			max-width: 640px;
+			margin: 40px auto;
+			background: #ffffff;
+			border-radius: 12px;
+			overflow: hidden;
+			box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+		}
+
+		.header {
+			background: #001a57;
+			background-color: #001a57;
+            padding: 32px 32px 28px;
+            text-align: center;
+        }
+
+		.header-logo {
+			font-size: 11px;
+			font-weight: 700;
+			letter-spacing: 2px;
+			color: rgba(255, 255, 255, 0.7);
+			text-transform: uppercase;
+			margin-bottom: 12px;
+		}
+
+		.header-title {
+			font-size: 26px;
+			font-weight: 800;
+			color: #ffffff;
+			letter-spacing: -0.5px;
+			margin-bottom: 8px;
+		}
+
+		.header-period {
+			display: inline-block;
+			background: rgba(255, 255, 255, 0.15);
+			padding: 4px 12px;
+			border-radius: 20px;
+			font-size: 12px;
+			color: #ffffff;
+			font-weight: 500;
+			letter-spacing: 0.5px;
+		}
+
+		.diet-bar {
+			background: #ffffff;
+			border-bottom: 1px solid #f0f2f5;
+			padding: 14px 32px;
+			text-align: center;
+		}
+
+		.diet-tag {
+			font-size: 12px;
+			color: #6e7781;
+			display: inline-flex;
+			align-items: center;
+			margin: 4px 6px;
+		}
+
+		.diet-tag b {
+			background: #f0f2f5;
+			color: #005aff;
+			padding: 2px 5px;
+			border-radius: 6px;
+			font-size: 11px;
+			font-weight: bold;
+			margin-right: 5px;
+			line-height: 1;
+		}
+
+		.day-block {
+			border-bottom: 4px solid #f4f6f8;
+		}
+
+		.day-header {
+			background: #ffffff;
+			padding: 20px 32px 8px;
+		}
+
+		.day-name {
+			font-size: 16px;
+			font-weight: 700;
+			color: #1d1d1f;
+		}
+
+		.day-name span {
+			color: #86909c;
+			font-weight: 400;
+			font-size: 14px;
+		}
+
+		.course {
+			padding: 10px 24px 14px;
+		}
+
+		.course-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 8px;
+		}
+
+		.course-title {
+			font-size: 16px;
+			letter-spacing: 1.5px;
+			text-transform: uppercase;
+			color: #86909c;
+		}
+
+		.course-price {
+			font-size: 13px;
+			font-weight: 700;
+			color: #005aff;
+			background: rgba(0, 90, 255, 0.08);
+			padding: 4px 12px;
+			border-radius: 20px;
+		}
+
+		.dish {
+			display: flex;
+			/* gap: 20px; */
+			align-items: flex-start;
+			margin-bottom: 12px;
+		}
+
+		.dish-dot {
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background: #b3ccff;
+			margin-top: 6px;
+			margin-right: 12px;
+			flex-shrink: 0;
+		}
+
+		.dish-en {
+			font-size: 14px;
+			font-weight: 600;
+			color: #1d1d1f;
+			line-height: 1.4;
+		}
+
+		.dish-zh {
+			font-size: 13px;
+			color: #6e7781;
+			margin-top: 2px;
+			line-height: 1.5;
+		}
+
+		.footer {
+			background: #fafbfc;
+			padding: 24px 32px;
+			color: #6e7781;
+			font-size: 12px;
+			line-height: 1.8;
+			border-top: 1px solid #eaecef;
+		}
+
+		.footer a {
+			color: #005aff;
+			text-decoration: none;
+			font-weight: 500;
+		}
+
+		.footer-row {
+			display: flex;
+			align-items: center;
+			margin-bottom: 8px;
+		}
+
+		.label {
+			background: #e1e4e8;
+			color: #4b5563;
+			font-weight: 600;
+			letter-spacing: 0.5px;
+			text-transform: uppercase;
+			font-size: 10px;
+			padding: 2px 6px;
+			border-radius: 4px;
+			white-space: nowrap;
+			margin-right: 5px;
+		}
+
+		.sign-off {
+			margin-top: 16px;
+			padding-top: 16px;
+			border-top: 1px solid #eaecef;
+			font-size: 13px;
+			color: #86909c;
+			text-align: center;
+			font-style: italic;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrapper">
+		<div class="header" style="background:#001a57;background-color:#001a57;padding:32px 32px 28px;text-align:center;">
+			<div class="header-logo">Nokia · Linnanmaa Oulu</div>
+			<div class="header-title">Weekly Menu 每周菜单</div>
+			<div class="header-period">23.3. - 29.3.</div>
+		</div>
+
+		<div class="diet-bar">
+			<span class="diet-tag"><b>G</b> Gluten free 无麸质</span>
+			<span class="diet-tag"><b>L</b> Lactose free 无乳糖</span>
+			<span class="diet-tag"><b>M</b> Milk-free 无奶</span>
+			<span class="diet-tag"><b>VL</b> Low lactose 低乳糖</span>
+		</div>
+
+		<div class="day-block">
+  <div class="day-header">
+    <div class="day-name">📅 MONDAY <span>周一</span></div>
+  </div>
+  <div class="course">
+    <div class="course-header">
+      <span class="course-title">🌟 Favourites</span>
+      <span class="course-price">8,80€</span>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Pork stew with honey &amp; beet root (G,L)</div>
+        <div class="dish-zh">蜂蜜甜菜根炖猪肉</div>
+      </div>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Spicy lentil stew (G,M)</div>
+        <div class="dish-zh">辣扁豆炖菜</div>
+      </div>
+    </div>
+  </div>
+  <div class="course">
+    <div class="course-header">
+      <span class="course-title">🛒 Food Market</span>
+      <span class="course-price">11,80€</span>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Pan patty with cream sauce (G,L)</div>
+        <div class="dish-zh">香煎肉饼配奶油酱</div>
+      </div>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Vegetable patties with herb yogurt (G,L)</div>
+        <div class="dish-zh">蔬菜饼配香草酸奶</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="day-block">
+  <div class="day-header">
+    <div class="day-name">📅 TUESDAY <span>周二</span></div>
+  </div>
+  <div class="course">
+    <div class="course-header">
+      <span class="course-title">🌟 Favourites</span>
+      <span class="course-price">8,80€</span>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Red Thai curry with chicken (M,G)</div>
+        <div class="dish-zh">泰式红咖喱鸡</div>
+      </div>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Lentil-vegetable bolognese (M,G)</div>
+        <div class="dish-zh">扁豆蔬菜波隆那酱</div>
+      </div>
+    </div>
+  </div>
+  <div class="course">
+    <div class="course-header">
+      <span class="course-title">🛒 Food Market</span>
+      <span class="course-price">11,80€</span>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Pork schnitzel &amp; chili mayo (M)</div>
+        <div class="dish-zh">德式炸猪排配辣味蛋黄酱</div>
+      </div>
+    </div>
+    <div class="dish">
+      <div class="dish-dot"></div>
+      <div>
+        <div class="dish-en">Vegetable moussaka (L)</div>
+        <div class="dish-zh">蔬菜慕萨卡</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+		<div class="footer">
+			<div class="footer-row">
+				<span class="label">Tips</span>
+				<span> 剩菜盲盒 (Leftover Box) &nbsp;·&nbsp; 13:00 - 13:10 &nbsp;·&nbsp; 7,70 €/kg</span>
+			</div>
+			<div class="footer-row">
+				<span class="label">来源</span>
+				<a href="https://www.sodexo.fi/ravintolat/nokia-linnanmaa"> sodexo.fi · Nokia Linnanmaa</a>
+			</div>
+			<div class="sign-off">Bon app&eacute;tit! &nbsp;祝您用餐愉快！</div>
+			<div class="footer-row" style="justify-content:center; margin-top:10px; margin-bottom:0">
+				<span> Powered by <a href="https://github.com/thekebabmaker/MenuMoose">MenuMoose🫎</a> &amp;
+					<a href="https://qwen.ai/blog?id=qwen3.5">qwen3.5-plus</a></span>
+			</div>
+			<div class="footer-row" style="justify-content:center; margin-top:-3px;">
+				<span> Made with ❤️ in Oulu</span>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

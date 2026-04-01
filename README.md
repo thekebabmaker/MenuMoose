@@ -1,40 +1,45 @@
-# MenuMoose 🦌
+# MenuMoose
 
-自动每周获取 Nokia Linnanmaa Oulu 食堂菜单，通过 AI 翻译英文菜名为中文，并发送中英双语邮件给订阅用户。
+自动获取 Nokia Linnanmaa Oulu 每周菜单，使用 AI 将菜名翻译为中文，并发送 HTML 风格邮件给订阅用户。
 
-Automated weekly lunch menu sender for Sodexo Nokia Linnanmaa. Fetches weekly JSON menu data, translates English dish names into Chinese via AI, and sends a bilingual email to subscribers.
-
----
-
-## 功能特性 ✨
-
-- 📅 每周自动运行（GitHub Actions）
-- 🇬🇧🇨🇳 菜名双语展示：一行英文 + 一行中文
-- 🍽️ 每道菜独立展示：自动拆分同一 Course 内的多个菜品
-- 🔒 收件人隐私保护：邮件头不暴露订阅名单
-- 🚀 批量翻译：一次请求翻译整周所有菜名
-- 🛡️ 翻译容错：部分失败时保留原文并标注（翻译失败）
-- 🔐 企业代理兼容：自动使用系统 CA bundle，兼容 Zscaler 等 MITM 代理
+MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and sends styled HTML email updates.
 
 ---
 
-## 项目结构 📁
+## 功能特性
 
-```text
+- 每周自动运行（GitHub Actions）
+- 菜名双语显示（英文 + 中文）
+- 每个 Course 自动拆分多道菜（按 / 分割）
+- 使用芬兰语原始菜名作为翻译输入，提高中文准确性
+- HTML 邮件模板渲染（来自独立模板文件）
+- 收件人隐私保护（不在邮件头暴露列表）
+- 企业网络兼容（系统 CA bundle，适配 Zscaler）
+- SMTP 465（SMTPS）稳定发送
+
+---
+
+## 项目结构
+
 MenuMoose/
-├── .github/
-│   └── workflows/
-│       └── menumoose.yml
-├── config.yml
-├── menumoose.py
-├── example.json            ← 菜单 JSON 示例（本地调试用）
-├── requirements.txt
-└── README.md
-```
+- .github/workflows/menumoose.yml
+- config.yml
+- menumoose.py
+- email_render.html
+- render_preview.py
+- preview_rendered.html
+- example.json
+- requirements.txt
+- README.md
+
+说明：
+- email_render.html: 邮件 HTML 模板（含占位符）
+- render_preview.py: 本地注入虚拟数据并生成预览
+- preview_rendered.html: 本地预览输出文件
 
 ---
 
-## 配置说明 ⚙️
+## 配置说明
 
 ### 1. config.yml（非敏感配置，纳入版本管理）
 
@@ -73,7 +78,7 @@ translation:
 
 ---
 
-## GitHub Actions 工作流 ⏰
+## GitHub Actions 工作流
 
 文件位置：[.github/workflows/menumoose.yml](.github/workflows/menumoose.yml)
 
@@ -90,7 +95,7 @@ translation:
 
 ---
 
-## 邮件格式示例 📧
+## 邮件格式示例
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -119,7 +124,7 @@ G: Gluten free 无麸质  L: Lactose free 无乳糖  M: Milk-free 无奶制品  
 
 ---
 
-## 本地运行 👨‍💻
+## 本地运行
 
 ### 安装依赖
 
@@ -159,7 +164,7 @@ Done. Email sent successfully.
 
 ---
 
-## 企业网络 / Zscaler 兼容 🏢
+## 企业网络 / Zscaler 兼容
 
 本地开发环境若通过 Zscaler 等 MITM 代理上网，代码会自动使用系统 CA bundle（而非 `certifi` 内置 CA）来完成 SSL 验证：
 
@@ -172,7 +177,7 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 
 ---
 
-## 常见问题排查 🔧
+## 常见问题排查
 
 ### 翻译失败 / Connection error
 
@@ -193,40 +198,49 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 
 ---
 
-## 主要函数说明 🧩
+## 主要函数
 
-| 函数 | 说明 |
-|---|---|
-| `_make_openai_client()` | 创建兼容系统 CA / Zscaler 的 OpenAI 客户端 |
-| `fetch_menu()` | 拉取解析周菜单 JSON，拆分每道菜为独立条目 |
-| `translate_menu_bulk()` | 批量翻译英文菜名（1 次 API 调用） |
-| `translate_days()` | 将翻译结果映射回每日菜单 |
-| `format_menu()` | 渲染纯文本邮件正文 |
-| `send_menu_email()` | 发送邮件（隐藏收件人） |
-
+- fetch_menu(): 拉取并解析每周菜单，提取英/芬菜名
+- translate_menu_bulk(): 批量翻译条目
+- translate_days(): 以芬兰语为输入映射到中文
+- format_menu_html(): 读取 email_render.html 并渲染动态内容
+- send_menu_email(): 组装并发送 HTML 邮件
 ---
 
-## 更新日志 📝
+## 更新日志
+
+### 2026-04-01
+- 邮件发送切换为 HTML only
+- README 对齐当前实现
+- 文档补充模板预览流程与占位符说明
+
+### 2026-03-31
+- HTML 模板抽离为独立文件 email_render.html
+- 新增 render_preview.py 本地虚拟渲染
+
+### 2026-03-30
+- 支持 Outlook 兼容样式调整
+- 支持模板内 Powered by 链接与 footer 布局调整
+
+### 2026-03-29
+- 菜单改为每道菜独立显示
+- 翻译输入改为芬兰语原文
 
 ### v1.2.0 (2026-03-29)
-
 - 菜单排版重构：每道菜独立 `• 英文 / 中文` 两行展示，替代原单行合并格式
 - `fetch_menu()` 新增按 `/` 拆分同课程多菜品逻辑
 - 日期标题格式更新：`MONDAY · 周一`
 
 ### v1.1.1 (2026-03-28)
-
 - SMTP 端口改为 465（SMTPS），修复 Zscaler 环境下 587 STARTTLS 握手超时
 - `_make_openai_client()` 新增系统 CA bundle 注入，修复企业代理 SSL 验证失败
 - 全流程新增 `print(..., flush=True)` 调试输出，便于定位超时步骤
 
 ### v1.1.0 (2026-03-26)
-
 - 配置迁移：非敏感配置统一放入 `config.yml`
 - 邮件隐私优化：收件人地址不在邮件头中暴露
 - 翻译稳定性优化：增强模型输出清洗与部分成功兜底
 
 ### v1.0.0
-
 - 初始版本发布
 

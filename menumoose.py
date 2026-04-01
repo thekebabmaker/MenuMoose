@@ -3,11 +3,13 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import html as html_lib
 import os
 import re
 import ssl
 import yaml
 import httpx
+from itertools import zip_longest
 from openai import OpenAI
 
 # Load configuration from config.yml
@@ -26,9 +28,11 @@ SMTP_PASS = os.environ.get('MENU_SMTP_PASS')  # From GitHub Secrets
 
 # URLs and API config from config file
 MENU_JSON_URL = CONFIG['menu_url']
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # From GitHub Secrets
+# OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # From GitHub Secrets
+OPENAI_API_KEY = os.environ.get('ALIYUN_API_KEY')  # From GitHub Secrets
+# MODEL_URL = CONFIG['translation']['api_base']
+MODEL_URL = CONFIG['translation']['aliyun_api_base']
 TRANSLATION_MODEL = CONFIG['translation']['model']
-MODEL_URL = CONFIG['translation']['api_base']
 RESTAURANT_NAME = CONFIG['restaurant']['name']
 RESTAURANT_URL = CONFIG['restaurant']['url']
 MYSTERY_BOX = CONFIG['mystery_box']
@@ -195,9 +199,11 @@ def fetch_menu():
         c2 = courses.get('2', {})
         days.append({
             'date': DAY_NAMES.get(date_fi, date_fi),
-            'c1_items': split_items(c1.get('title_en', '')),
+            'c1_items':    split_items(c1.get('title_en', '')),
+            'c1_fi_items': split_items(c1.get('title_fi', '')),
             'c1_price': c1.get('price', 'N/A'),
-            'c2_items': split_items(c2.get('title_en', '')),
+            'c2_items':    split_items(c2.get('title_en', '')),
+            'c2_fi_items': split_items(c2.get('title_fi', '')),
             'c2_price': c2.get('price', 'N/A'),
         })
     return timeperiod, days
@@ -205,90 +211,118 @@ def fetch_menu():
 
 def translate_days(days):
     """
-    Translate all dish titles in one bulk API call, then map back to days.
+    Translate all dish titles in one bulk API call using Finnish source titles
+    (more semantically precise than English), then map results back by position.
     """
-    # Collect all individual English titles (c1 and c2 are now lists)
-    titles_en = []
+    # Use Finnish titles as translation input — they are the original names
+    # and yield more accurate Chinese translations than the English versions.
+    fi_titles = []
     for day in days:
-        titles_en.extend(day['c1_items'])
-        titles_en.extend(day['c2_items'])
+        fi_titles.extend(day['c1_fi_items'])
+        fi_titles.extend(day['c2_fi_items'])
 
-    # Translate all at once
-    title_mapping = translate_menu_bulk(titles_en)
+    # Translate all Finnish titles at once
+    fi_to_zh = translate_menu_bulk(fi_titles)
 
-    # Apply translations to each day
+    def map_zh(en_items, fi_items):
+        """Zip en/fi pairs and return zh list.
+        If Finnish translation succeeded, use it.
+        If it failed (returned fi unchanged), fall back to en so that
+        format_menu's `en == zh` failure detection still works.
+        """
+        result = []
+        for en, fi in zip_longest(en_items, fi_items, fillvalue=''):
+            source = fi if fi else en
+            zh = fi_to_zh.get(source, source)
+            # Translation failed: model returned the source string unchanged
+            result.append(en if zh == source else zh)
+        return result
+
     translated_days = []
     for day in days:
         translated_days.append({
             **day,
-            'c1_items_zh': [title_mapping.get(t, t) for t in day['c1_items']],
-            'c2_items_zh': [title_mapping.get(t, t) for t in day['c2_items']],
+            'c1_items_zh': map_zh(day['c1_items'], day['c1_fi_items']),
+            'c2_items_zh': map_zh(day['c2_items'], day['c2_fi_items']),
         })
     return translated_days
 
 
-def format_menu(timeperiod, days):
-    border = '━' * 30
-    thin   = '─' * 50
+def format_menu_html(timeperiod, days):
+    """Render the weekly menu by filling the email_render.html template."""
+    e = html_lib.escape  # shorthand
+    template_path = os.path.join(os.path.dirname(__file__), 'email_render.html')
+    with open(template_path, 'r', encoding='utf-8') as f:
+        template = f.read()
 
-    lines = [
-        f'┏{border}┓',
-        f'   NOKIA LINNANMAA OULU  |  Weekly Menu 每周菜单',
-        f'   {timeperiod}',
-        f'┗{border}┛',
-        '',
-        '饮食标签 | DIET LABELS',
-        'G: Gluten free 无麸质  L: Lactose free 无乳糖  M: Milk-free 无奶制品  VL: Low lactose 低乳糖',
-        '',
-    ]
+    def render_dishes(items_en, items_zh):
+        parts = []
+        for en, zh in zip(items_en, items_zh):
+            failed = (en == zh)
+            zh_text = e(en) + '（翻译失败）' if failed else e(zh)
+            parts.append(
+                '<div class="dish">'
+                '  <div class="dish-dot"></div>'
+                '  <div>'
+                f'    <div class="dish-en">{e(en)}</div>'
+                f'    <div class="dish-zh">{zh_text}</div>'
+                '  </div>'
+                '</div>'
+            )
+        return ''.join(parts)
 
+    day_blocks = []
     for day in days:
-        lines.append(day['date'])
-        lines.append(thin)
+        # '📅 MONDAY · 周一'  →  day_en='📅 MONDAY'  day_zh='周一'
+        parts = day['date'].split(' · ', 1)
+        day_en = e(parts[0]) if parts else e(day['date'])
+        day_zh = e(parts[1]) if len(parts) > 1 else ''
 
-        # FAVOURITES
-        lines.append(f'🌟 FAVOURITES  |  {day["c1_price"]}')
-        for en, zh in zip(day['c1_items'], day['c1_items_zh']):
-            failed = (en == zh)
-            lines.append(f'   • {en}')
-            lines.append(f'     {zh}{"（翻译失败）" if failed else ""}')
+        c1 = render_dishes(day['c1_items'], day['c1_items_zh'])
+        c2 = render_dishes(day['c2_items'], day['c2_items_zh'])
 
-        lines.append('')
+        day_blocks.append(
+            '<div class="day-block">'
+            '  <div class="day-header">'
+            f'    <div class="day-name">{day_en} <span>{day_zh}</span></div>'
+            '  </div>'
+            '  <div class="course">'
+            '    <div class="course-header">'
+            '      <span class="course-title">🍽️ Favourites</span>'
+            f'      <span class="course-price">{e(day["c1_price"])}</span>'
+            f'    </div>{c1}'
+            '  </div>'
+            '  <div class="course">'
+            '    <div class="course-header">'
+            '      <span class="course-title">👨‍🍳 Food Market</span>'
+            f'      <span class="course-price">{e(day["c2_price"])}</span>'
+            f'    </div>{c2}'
+            '  </div>'
+            '</div>'
+        )
 
-        # FOOD MARKET
-        lines.append(f'🛒 FOOD MARKET  |  {day["c2_price"]}')
-        for en, zh in zip(day['c2_items'], day['c2_items_zh']):
-            failed = (en == zh)
-            lines.append(f'   • {en}')
-            lines.append(f'     {zh}{"（翻译失败）" if failed else ""}')
-
-        lines.append('')
-        lines.append(thin)
-        lines.append('')
-
-    lines += [
-        '💡 温馨提示 | SERVICE INFO',
-        f'• 剩菜盲盒 (Leftover Box): 13:00 - 13:10 | 7,70€/kg',
-        f'• 菜单来源: sodexo.fi (Nokia Linnanmaa)',
-        f'• Powered by: MenuMoose🦌 & {TRANSLATION_MODEL} ',
-        '',
-        'Bon appétit! 祝您用餐愉快！',
-    ]
-    return '\n'.join(lines)
+    return (
+        template
+        .replace('{{TIMEPERIOD}}', e(timeperiod))
+        .replace('{{DAY_BLOCKS}}', ''.join(day_blocks))
+        .replace('{{RESTAURANT_URL}}', e(RESTAURANT_URL))
+        .replace('{{TRANSLATION_MODEL}}', e(TRANSLATION_MODEL))
+    )
 
 
 def send_menu_email(timeperiod, days):
-    subject = f'🍽️ Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
-    body = format_menu(timeperiod, days)
+    subject = f'Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
+    body_html = format_menu_html(timeperiod, days)
+
     if not RECIPIENTS:
         raise ValueError('No recipients configured in config.yml (recipients).')
 
-    msg = MIMEMultipart()
+    msg = MIMEMultipart('alternative')
     msg['From'] = SMTP_USER
     # Keep recipients private: do not expose subscriber addresses in email headers.
     msg['To'] = 'undisclosed-recipients:;'
     msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body_html, 'html', 'utf-8'))
     print(f'  [smtp] Connecting to {SMTP_SERVER}:{SMTP_PORT}...', flush=True)
     paths = ssl.get_default_verify_paths()
     system_ca = paths.cafile or paths.openssl_cafile
