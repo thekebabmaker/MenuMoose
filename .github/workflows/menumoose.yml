@@ -2,7 +2,7 @@ name: MenuMoose
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday UTC 6:00 = Helsinki 8:00
+    - cron: '0 5 * * 1'  # Every Monday UTC 5:00 = Helsinki 8:00
   workflow_dispatch:
 
 jobs:
@@ -23,5 +23,6 @@ jobs:
           MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
           MENU_SMTP_PASS: ${{ secrets.MENU_SMTP_PASS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
         run: |
           python menumoose.py
