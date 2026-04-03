@@ -37,3 +37,5 @@ mystery_box:
   enabled: true
   time: "Mon - Fri, 13.00-13.10"
   price: "7,70€/kg"
+
+resend_from_email: "menumoose_oulu_linnanmaa@panda-tech.top"

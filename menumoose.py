@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 import requests
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import html as html_lib
 import os
 import re
@@ -11,6 +8,7 @@ import yaml
 import httpx
 from itertools import zip_longest
 from openai import OpenAI
+import resend
 
 # Load configuration from config.yml
 with open('config.yml', 'r', encoding='utf-8') as f:
@@ -20,11 +18,9 @@ with open('config.yml', 'r', encoding='utf-8') as f:
 EMAIL_LIST = CONFIG['recipients']
 RECIPIENTS = [email.strip() for email in EMAIL_LIST if email and email.strip()]
 
-# SMTP from config file
-SMTP_SERVER = CONFIG['smtp']['server']
-SMTP_PORT = CONFIG['smtp']['port']
-SMTP_USER = os.environ.get('MENU_SMTP_USER')  # From GitHub Secrets
-SMTP_PASS = os.environ.get('MENU_SMTP_PASS')  # From GitHub Secrets
+# Resend API from environment
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+RESEND_FROM_EMAIL = CONFIG.get('resend_from_email', 'noreply@panda-tech.top')
 
 # URLs and API config from config file
 MENU_JSON_URL = CONFIG['menu_url']
@@ -177,6 +173,13 @@ def translate_menu_bulk(titles_en):
     return result
 
 
+def extract_recipe_names(recipes_dict):
+    """Extract recipe names from a recipes dictionary, returning only the 'name' field."""
+    if not recipes_dict:
+        return []
+    return [recipe.get('name', '') for recipe in recipes_dict.values() if isinstance(recipe, dict)]
+
+
 def fetch_menu():
     print(f'  [fetch_menu] GET {MENU_JSON_URL}', flush=True)
     resp = requests.get(MENU_JSON_URL, timeout=15)
@@ -202,9 +205,11 @@ def fetch_menu():
             'c1_items':    split_items(c1.get('title_en', '')),
             'c1_fi_items': split_items(c1.get('title_fi', '')),
             'c1_price': c1.get('price', 'N/A'),
+            'c1_recipes': extract_recipe_names(c1.get('recipes', {})),
             'c2_items':    split_items(c2.get('title_en', '')),
             'c2_fi_items': split_items(c2.get('title_fi', '')),
             'c2_price': c2.get('price', 'N/A'),
+            'c2_recipes': extract_recipe_names(c2.get('recipes', {})),
         })
     return timeperiod, days
 
@@ -317,32 +322,22 @@ def send_menu_email(timeperiod, days):
     if not RECIPIENTS:
         raise ValueError('No recipients configured in config.yml (recipients).')
 
-    msg = MIMEMultipart('alternative')
-    msg['From'] = SMTP_USER
-    # Keep recipients private: do not expose subscriber addresses in email headers.
-    msg['To'] = 'undisclosed-recipients:;'
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body_html, 'html', 'utf-8'))
-    print(f'  [smtp] Connecting to {SMTP_SERVER}:{SMTP_PORT}...', flush=True)
-    paths = ssl.get_default_verify_paths()
-    system_ca = paths.cafile or paths.openssl_cafile
-    ssl_ctx = ssl.create_default_context(cafile=system_ca)
-    if SMTP_PORT == 465:
-        # Port 465: direct SSL (SMTPS), no STARTTLS needed
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=30, context=ssl_ctx) as server:
-            print(f'  [smtp] Logging in as {SMTP_USER}...', flush=True)
-            server.login(SMTP_USER, SMTP_PASS)
-            print(f'  [smtp] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
-            server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
-    else:
-        # Port 587: STARTTLS upgrade with system CA (handles Zscaler MITM cert)
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
-            print('  [smtp] Starting TLS...', flush=True)
-            server.starttls(context=ssl_ctx)
-            print(f'  [smtp] Logging in as {SMTP_USER}...', flush=True)
-            server.login(SMTP_USER, SMTP_PASS)
-            print(f'  [smtp] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
-            server.sendmail(SMTP_USER, RECIPIENTS, msg.as_string())
+    if not RESEND_API_KEY:
+        raise ValueError('RESEND_API_KEY environment variable not set.')
+
+    resend.api_key = RESEND_API_KEY
+
+    print(f'  [resend] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
+
+    for recipient in RECIPIENTS:
+        params: resend.Emails.SendParams = {
+            "from": RESEND_FROM_EMAIL,
+            "to": recipient,
+            "subject": subject,
+            "html": body_html,
+        }
+        email = resend.Emails.send(params)
+        print(f'  [resend] Email sent to {recipient}: {email.get("id")}', flush=True)
 
 
 if __name__ == '__main__':
