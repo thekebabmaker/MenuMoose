@@ -4,6 +4,7 @@ import html as html_lib
 import os
 import re
 import ssl
+import time
 import yaml
 import httpx
 from itertools import zip_longest
@@ -188,10 +189,14 @@ def fetch_menu():
     data = resp.json()
 
     def split_items(title_en):
-        """Split a course title into individual dish names (separated by ' / ')."""
+        """Split a course title into individual dish names.
+
+        Keep `w/...` fragments such as `w/smetana` intact instead of treating
+        that slash as a dish separator.
+        """
         if not title_en or title_en.strip() == 'N/A':
             return []
-        return [t.strip() for t in title_en.split('/') if t.strip()]
+        return [t.strip() for t in re.split(r'(?<!\bw)/', title_en, flags=re.IGNORECASE) if t.strip()]
 
     timeperiod = data.get('timeperiod', 'N/A')
     days = []
@@ -338,6 +343,7 @@ def send_menu_email(timeperiod, days):
         }
         email = resend.Emails.send(params)
         print(f'  [resend] Email sent to {recipient}: {email.get("id")}', flush=True)
+        time.sleep(1)  # Rate limit: 1 second delay between requests
 
 
 if __name__ == '__main__':

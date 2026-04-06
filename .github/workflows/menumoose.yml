@@ -2,7 +2,7 @@ name: MenuMoose
 
 on:
   schedule:
-    - cron: '0 5 * * 1'  # Every Monday UTC 5:00 = Helsinki 8:00
+    - cron: '0 4 * * 1'  # Every Monday UTC 4:00 = Helsinki 7:00
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
-          pip install requests openai PyYAML resend
+          pip install requests openai PyYAML resend time
       - name: Run menumoose
         env:
           MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
