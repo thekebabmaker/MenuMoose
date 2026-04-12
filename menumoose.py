@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import requests
 import html as html_lib
 import os
@@ -18,6 +19,8 @@ with open('config.yml', 'r', encoding='utf-8') as f:
 # Email recipients from config file (visible and version-controlled)
 EMAIL_LIST = CONFIG['recipients']
 RECIPIENTS = [email.strip() for email in EMAIL_LIST if email and email.strip()]
+EMAIL_LIST_TEST = CONFIG.get('recipients_test', [])
+RECIPIENTS_TEST = [email.strip() for email in EMAIL_LIST_TEST if email and email.strip()]
 
 # Resend API from environment
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
@@ -134,7 +137,7 @@ def translate_menu_bulk(titles_en):
                     'role': 'system',
                     'content': (
                         'You are a professional and culturally-aware restaurant menu translator.'
-                        'I will provide a list of English dish titles (one per line).'
+                        'I will provide a list of Finnish dish titles (one per line).'
                         'Translate each title into **natural, common, and appealing Simplified Chinese restaurant menu names**.'
                         'Ensure the translation reflects authentic culinary terminology and avoids literal or awkward phrasing.'
                         'Crucially, preserve all dietary labels (e.g., (L,G), (M,G,V)), numbers, and punctuation exactly as they appear.'
@@ -178,7 +181,14 @@ def extract_recipe_names(recipes_dict):
     """Extract recipe names from a recipes dictionary, returning only the 'name' field."""
     if not recipes_dict:
         return []
-    return [recipe.get('name', '') for recipe in recipes_dict.values() if isinstance(recipe, dict)]
+    names = []
+    for recipe in recipes_dict.values():
+        if not isinstance(recipe, dict):
+            continue
+        name = (recipe.get('name') or '').strip()
+        if name:
+            names.append(name)
+    return names
 
 
 def fetch_menu():
@@ -258,6 +268,92 @@ def translate_days(days):
     return translated_days
 
 
+def explain_days(days):
+    """
+    Explain dishes in Chinese for readers unfamiliar with Western cuisine.
+
+    Input source per day:
+      - c1_fi_items / c2_fi_items: Finnish dish titles
+      - c1_recipes / c2_recipes: extracted recipe component names
+
+    Returns:
+      list[day] with two new keys: c1_explain, c2_explain
+    """
+    if not days:
+        return days
+
+    fallback = '信息有限，请结合饮食标签和个人口味判断是否适合自己。'
+    if translation_client is None:
+        return [{**day, 'c1_explain': fallback, 'c2_explain': fallback} for day in days]
+
+    entries = []
+    for day in days:
+        for prefix in ('c1', 'c2'):
+            fi_items = [i.strip() for i in day.get(f'{prefix}_fi_items', []) if i and i.strip()]
+            recipe_names = [r.strip() for r in day.get(f'{prefix}_recipes', []) if r and r.strip()]
+            dish_line = ' / '.join(fi_items) if fi_items else 'N/A'
+            recipe_line = ' / '.join(recipe_names) if recipe_names else 'N/A'
+            entries.append((dish_line, recipe_line))
+
+    user_lines = []
+    for idx, (dish_line, recipe_line) in enumerate(entries, start=1):
+        user_lines.append(
+            f'[{idx}] 菜名(芬兰语): {dish_line}\n'
+            f'配方名称: {recipe_line}'
+        )
+    bulk_text = '\n\n'.join(user_lines)
+
+    print(f'  [explain] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(entries)} course entries...', flush=True)
+    try:
+        response = translation_client.chat.completions.create(
+            model=TRANSLATION_MODEL,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are a Western menu explanation assistant. '
+                        'I will provide multiple entries of "dish name (in Finnish) + recipe component names". '
+                        'For each numbered entry, write a brief Chinese explanation for readers unfamiliar with Western cuisine, so they can decide whether the dish suits them. '
+                        'Keep each explanation within 2-3 sentences and include: key ingredients/flavor profile, and a suitability note (who it is suitable or unsuitable for). '
+                        'Sauce is very important in Western dishes: if a sauce is present or implied, explain the sauce style, typical ingredients, and expected taste (for example creamy/tangy/herby/savory). '
+                        'If the exact sauce recipe is unknown, state it as an informed estimate based on the dish/recipe names. '
+                        'If information is insufficient, explicitly write "信息不足，建议现场确认过敏原". '
+                        'Output must strictly follow this format: [number] explanation. '
+                        'One line per entry only; do not output extra titles, notes, or blank lines.'
+                    )
+                },
+                {'role': 'user', 'content': bulk_text},
+            ],
+            temperature=0.2,
+        )
+        explained_text = response.choices[0].message.content or ''
+        print(f'  [explain] API response received ({len(explained_text)} chars)', flush=True)
+        explained_lines = _clean_translation_lines(explained_text)
+    except Exception as e:
+        print(f'  [explain] API call failed: {e}', flush=True)
+        explained_lines = []
+
+    normalized = []
+    for line in explained_lines:
+        normalized.append(re.sub(r'^\[\d+\]\s*', '', line).strip())
+
+    if len(normalized) > len(entries):
+        normalized = normalized[:len(entries)]
+    elif len(normalized) < len(entries):
+        normalized.extend([fallback] * (len(entries) - len(normalized)))
+
+    explained_days = []
+    i = 0
+    for day in days:
+        explained_days.append({
+            **day,
+            'c1_explain': normalized[i] if normalized[i] else fallback,
+            'c2_explain': normalized[i + 1] if normalized[i + 1] else fallback,
+        })
+        i += 2
+    return explained_days
+
+
 def format_menu_html(timeperiod, days):
     """Render the weekly menu by filling the email_render.html template."""
     e = html_lib.escape  # shorthand
@@ -290,6 +386,8 @@ def format_menu_html(timeperiod, days):
 
         c1 = render_dishes(day['c1_items'], day['c1_items_zh'])
         c2 = render_dishes(day['c2_items'], day['c2_items_zh'])
+        c1_explain = e(day.get('c1_explain', ''))
+        c2_explain = e(day.get('c2_explain', ''))
 
         day_blocks.append(
             '<div class="day-block">'
@@ -301,12 +399,14 @@ def format_menu_html(timeperiod, days):
             '      <span class="course-title">🍽️ Favourites</span>'
             f'      <span class="course-price">{e(day["c1_price"])}</span>'
             f'    </div>{c1}'
+            f'    <div class="course-explain">{c1_explain}</div>'
             '  </div>'
             '  <div class="course">'
             '    <div class="course-header">'
             '      <span class="course-title">👨‍🍳 Food Market</span>'
             f'      <span class="course-price">{e(day["c2_price"])}</span>'
             f'    </div>{c2}'
+            f'    <div class="course-explain">{c2_explain}</div>'
             '  </div>'
             '</div>'
         )
@@ -320,21 +420,21 @@ def format_menu_html(timeperiod, days):
     )
 
 
-def send_menu_email(timeperiod, days):
+def send_menu_email(timeperiod, days, recipients):
     subject = f'Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
     body_html = format_menu_html(timeperiod, days)
 
-    if not RECIPIENTS:
-        raise ValueError('No recipients configured in config.yml (recipients).')
+    if not recipients:
+        raise ValueError('No recipients configured for current mode.')
 
     if not RESEND_API_KEY:
         raise ValueError('RESEND_API_KEY environment variable not set.')
 
     resend.api_key = RESEND_API_KEY
 
-    print(f'  [resend] Sending to {len(RECIPIENTS)} recipient(s)...', flush=True)
+    print(f'  [resend] Sending to {len(recipients)} recipient(s)...', flush=True)
 
-    for recipient in RECIPIENTS:
+    for recipient in recipients:
         params: resend.Emails.SendParams = {
             "from": RESEND_FROM_EMAIL,
             "to": recipient,
@@ -347,13 +447,27 @@ def send_menu_email(timeperiod, days):
 
 
 if __name__ == '__main__':
-    print('[1/4] Fetching menu...', flush=True)
+    parser = argparse.ArgumentParser(description='Fetch, translate and email weekly menu.')
+    parser.add_argument(
+        '--white-list',
+        action='store_true',
+        help='Send only to recipients_test addresses in config.yml.'
+    )
+    args = parser.parse_args()
+    recipients = RECIPIENTS_TEST if args.white_list else RECIPIENTS
+
+    if args.white_list:
+        print(f'  [mode] White-list enabled: recipients_test ({len(recipients)} addresses)', flush=True)
+
+    print('[1/5] Fetching menu...', flush=True)
     timeperiod, days = fetch_menu()
-    print(f'[2/4] Menu fetched: {timeperiod}, {len(days)} days', flush=True)
+    print(f'[2/5] Menu fetched: {timeperiod}, {len(days)} days', flush=True)
 
-    print('[3/4] Translating menu...', flush=True)
+    print('[3/5] Translating menu...', flush=True)
     days = translate_days(days)
-    print('[4/4] Translation done. Sending email...', flush=True)
+    print('[4/5] Translation done. Generating dish explanations...', flush=True)
+    days = explain_days(days)
+    print('[5/5] Dish explanations done. Sending email...', flush=True)
 
-    send_menu_email(timeperiod, days)
+    send_menu_email(timeperiod, days, recipients)
     print('Done. Email sent successfully.', flush=True)

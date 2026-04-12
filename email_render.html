@@ -131,6 +131,18 @@
 			border-radius: 20px;
 		}
 
+		.course-explain {
+			margin-top: 6px;
+			margin-left: 18px;
+			padding: 9px 10px;
+			background: #f8fafc;
+			border-left: 3px solid #dbe7ff;
+			border-radius: 6px;
+			font-size: 12px;
+			line-height: 1.6;
+			color: #4b5563;
+		}
+
 		.dish {
 			display: flex;
 			/* gap: 20px; */
@@ -233,10 +245,14 @@
 				<span class="label">来源</span>
 				<a href="{{RESTAURANT_URL}}"> sodexo.fi · Nokia Linnanmaa</a>
 			</div>
+			<div class="footer-row">
+				<span class="label">免责</span>
+				<span> 所有中文信息均由 LLM 大模型生成，不保证完全准确，请读者自行甄别。</span>
+			</div>
 			<div class="sign-off">Bon app&eacute;tit! &nbsp;祝您用餐愉快！</div>
 			<div class="footer-row" style="justify-content:center; margin-top:10px; margin-bottom:0">
 				<span> Powered by <a href="https://github.com/thekebabmaker/MenuMoose">MenuMoose🫎</a> &amp;
-					<a href="https://qwen.ai/blog?id=qwen3.5">qwen3.5-plus</a></span>
+					<span>{{TRANSLATION_MODEL}}</span></span>
 			</div>
 			<div class="footer-row" style="justify-content:center; margin-top:-3px;">
 				<span> Made with ❤️ in Oulu</span>

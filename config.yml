@@ -4,11 +4,16 @@
 # Format: comma-separated email addresses
 recipients:
   - qiang.1.huang@nokia.com
+  - rendy.huang@me.com
   - jiao.wang@nokia.com
   - lingyan.jiang@nokia.com
   - qiuxiang.yang@nokia.com
   - tuanbin.liu@nokia.com
   - zhong.1.zhuang@nokia.com
+  - xiaoyuan.ge@nokia.com
+
+recipients_test:
+  - qiang.1.huang@nokia.com
 
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
@@ -38,4 +43,4 @@ mystery_box:
   time: "Mon - Fri, 13.00-13.10"
   price: "7,70€/kg"
 
-resend_from_email: "MenuMoose <noreply@panda-tech.top>"
+resend_from_email: "MenuMoose🫎 <noreply@panda-tech.top>"
