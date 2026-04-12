@@ -136,13 +136,16 @@ def translate_menu_bulk(titles_en):
                 {
                     'role': 'system',
                     'content': (
-                        'You are a professional and culturally-aware restaurant menu translator.'
+                        'You are a professional and culturally-aware Finnish-to-Chinese culinary translator.'
                         'I will provide a list of Finnish dish titles (one per line).'
-                        'Translate each title into **natural, common, and appealing Simplified Chinese restaurant menu names**.'
-                        'Ensure the translation reflects authentic culinary terminology and avoids literal or awkward phrasing.'
-                        'Crucially, preserve all dietary labels (e.g., (L,G), (M,G,V)), numbers, and punctuation exactly as they appear.'
-                        'Maintain the original order, one translated title per line.'
-                        'Return ONLY the translated Chinese titles, with nothing else.'
+                        'Translate each into **appealing, professional Simplified Chinese menu names** that balance appetite appeal with Nordic elegance.'
+                        'Guidelines: '
+                        '1. Use standard Chinese Western-cuisine terminology (e.g., use "香煎" for paistettu, "慢炖" for haudutettu). '
+                        '2. Be precise with Finnish ingredients: translate "Kirjolohi" as 虹鳟, "Riista" as 野味/鹿肉 based on context. '
+                        '3. **Strictly preserve** all dietary labels like (L, G), (M, G, V), numbers, and original punctuation. '
+                        '4. Avoid robotic literal translation; for example, "Lohikeitto" should be "芬兰传统奶油三文鱼浓汤" rather than just "三文鱼汤". '
+                        '5. Maintain the original order, one translated title per line. '
+                        'Return ONLY the translated Chinese titles, with no introductory or concluding text.'
                     )
                 },
                 {'role': 'user', 'content': bulk_text},
