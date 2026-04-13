@@ -17,7 +17,7 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
-          pip install requests openai PyYAML resend time argparse
+          pip install requests openai PyYAML resend
       - name: Run menumoose
         env:
           MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
