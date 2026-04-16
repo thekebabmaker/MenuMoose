@@ -6,15 +6,24 @@ MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and
 
 ---
 
+## 流程图
+
+![MenuMoose Program Flow](assets/menumoose-flowchart.png)
+
+---
+
 ## 功能特性
 
 - 每周自动运行（GitHub Actions）
 - 菜名双语显示（英文 + 中文）
 - 每个 Course 自动拆分多道菜（按 / 分割）
 - 使用芬兰语原始菜名作为翻译输入，提高中文准确性
+- AI 菜品解说：每道菜配中文口味、食材、酱料风格描述，帮助不熟悉西餐的读者判断是否合口
 - HTML 邮件模板渲染（来自独立模板文件）
 - 收件人隐私保护（不在邮件头暴露列表）
-- 使用 Aliyun DashScope（qwen3.5-plus）进行批量翻译
+- 邮件内置退订链接（mailto: 一键退订）
+- `--white-list` 测试模式：仅发送给 `recipients_test` 列表，用于调试
+- 使用 Aliyun DashScope（qwen3.6-plus）进行批量翻译与菜品解说
 - 通过 Resend API 发送 HTML 邮件
 - 企业网络兼容（系统 CA bundle，适配 Zscaler）
 
@@ -24,6 +33,7 @@ MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and
 
 MenuMoose/
 - .github/workflows/menumoose.yml
+- assets/menumoose-flowchart.png
 - config.yml
 - menumoose.py
 - email_render.html
@@ -37,6 +47,7 @@ MenuMoose/
 - email_render.html: 邮件 HTML 模板（含占位符）
 - render_preview.py: 本地注入虚拟数据并生成预览
 - preview_rendered.html: 本地预览输出文件
+- assets/menumoose-flowchart.png: 程序流程图
 
 ---
 
@@ -44,10 +55,11 @@ MenuMoose/
 
 ### 1. config.yml（非敏感配置，纳入版本管理）
 
-- `recipients`: 收件人列表
+- `recipients`: 正式收件人列表
+- `recipients_test`: 测试收件人列表（配合 `--white-list` 使用）
 - `menu_url`: Sodexo 周菜单 JSON 地址
 - `translation.model` / `translation.aliyun_api_base`: 翻译模型与 API Base URL
-- `resend_from_email`: Resend 发件地址（From）
+- `resend_from_email`: Resend 发件地址（From，含显示名）
 - `restaurant`、`mystery_box`: 邮件展示信息
 
 示例：
@@ -56,17 +68,16 @@ MenuMoose/
 recipients:
   - your.name@example.com
 
+recipients_test:
+  - dev@example.com
+
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
 
-smtp:
-  server: "smtp.gmail.com"
-  port: 465          # 465=SMTPS(推荐)  587=STARTTLS
-
 translation:
-  model: "qwen3.5-plus"
+  model: "qwen3.6-plus"
   aliyun_api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
-resend_from_email: "menumoose_oulu_linnanmaa@panda-tech.top"
+resend_from_email: "MenuMoose <noreply@panda-tech.top>"
 ```
 
 ### 2. GitHub Secrets（敏感信息）
@@ -86,16 +97,17 @@ resend_from_email: "menumoose_oulu_linnanmaa@panda-tech.top"
 
 文件位置：[.github/workflows/menumoose.yml](.github/workflows/menumoose.yml)
 
-- 定时：每周一 UTC 05:00（赫尔辛基约 08:00，夏令时）
+- 定时：每周一 UTC 04:00（赫尔辛基约 07:00，夏令时）
 - 支持：手动触发（workflow_dispatch）
 
 流程：
 
 1. 拉取 Sodexo JSON 菜单
 2. 提取每天 Course 1/2，按 `/` 拆分为独立菜品列表
-3. 批量翻译全周所有菜名（1 次 API 调用）
-4. 渲染 HTML 邮件正文（模板：`email_render.html`）
-5. 通过 Resend API 发送给配置收件人
+3. 批量翻译全周所有菜名（芬兰语 → 中文，1 次 API 调用）
+4. 生成每道菜的中文解说（口味、食材、酱料描述，1 次 API 调用）
+5. 渲染 HTML 邮件正文（模板：`email_render.html`）
+6. 通过 Resend API 逐个发送给收件人（含退订链接）
 
 ---
 
@@ -141,23 +153,30 @@ export ALIYUN_API_KEY="your-aliyun-api-key"
 export RESEND_API_KEY="your-resend-api-key"
 ```
 
-### 运行（含调试输出）
+### 运行
 
 ```bash
+# 正式发送（全部收件人）
 python menumoose.py
+
+# 测试模式（仅发送给 recipients_test）
+python menumoose.py --white-list
 ```
 
 运行时会打印各步骤进度，便于定位超时或连接问题：
 
 ```
-[1/4] Fetching menu...
+[1/5] Fetching menu...
   [fetch_menu] GET https://...
   [fetch_menu] HTTP 200, 90779 bytes
-[2/4] Menu fetched: 23.3. - 29.3., 5 days
-[3/4] Translating menu...
-  [translate] Calling https://dashscope.aliyuncs.com/compatible-mode/v1 model=qwen3.5-plus, 10 titles...
+[2/5] Menu fetched: 23.3. - 29.3., 5 days
+[3/5] Translating menu...
+  [translate] Calling https://dashscope.aliyuncs.com/compatible-mode/v1 model=qwen3.6-plus, 10 titles...
   [translate] API response received (407 chars)
-[4/4] Translation done. Sending email...
+[4/5] Translation done. Generating dish explanations...
+  [explain] Calling https://dashscope.aliyuncs.com/compatible-mode/v1 model=qwen3.6-plus, 10 course entries...
+  [explain] API response received (1203 chars)
+[5/5] Dish explanations done. Sending email...
   [resend] Sending to 1 recipient(s)...
 Done. Email sent successfully.
 ```
@@ -197,14 +216,26 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 
 ## 主要函数
 
-- fetch_menu(): 拉取并解析每周菜单，提取英/芬菜名
-- translate_menu_bulk(): 批量翻译条目
-- translate_days(): 以芬兰语为输入映射到中文
-- format_menu_html(): 读取 email_render.html 并渲染动态内容
-- send_menu_email(): 通过 Resend API 发送 HTML 邮件
+- `fetch_menu()`: 拉取并解析每周菜单，提取英/芬菜名及 recipe 组成
+- `translate_menu_bulk()`: 去重、查缓存、调用 OpenAI API 批量翻译
+- `translate_days()`: 以芬兰语为输入，批量翻译并映射到中文
+- `explain_days()`: 以芬兰语菜名 + recipe 名为输入，生成中文菜品解说
+- `format_menu_html()`: 读取 `email_render.html` 并渲染动态内容
+- `send_menu_email()`: 通过 Resend API 逐个发送 HTML 邮件（含退订链接）
+- `_unsubscribe_url()`: 生成 mailto: 退订链接
 ---
 
 ## 更新日志
+
+### 2026-04-16
+- 新增 `explain_days()`：每道菜自动生成中文解说（口味、食材、酱料风格），帮助不熟悉西餐的读者判断是否合口
+- 新增 `--white-list` CLI 参数：测试模式仅发送给 `recipients_test`，避免误发正式收件人
+- 新增 `_unsubscribe_url()`：每封邮件底部嵌入 mailto: 退订链接
+- `config.yml` 新增 `recipients_test` 测试收件人列表
+- 翻译模型升级为 `qwen3.6-plus`
+- 流程步骤从 4 步扩展为 5 步（新增菜品解说步骤）
+- 新增程序流程图（`assets/menumoose-flowchart.png`）
+- README 全面对齐当前实现
 
 ### 2026-04-06
 - 修复菜单拆分逻辑：避免将 `w/...` 中的斜杠当作菜品分隔符（如 `w/smetana` 不再被误拆）

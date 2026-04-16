@@ -423,9 +423,18 @@ def format_menu_html(timeperiod, days):
     )
 
 
+def _unsubscribe_url(recipient):
+    """Build a mailto: unsubscribe link pre-filled for the given recipient."""
+    from urllib.parse import quote
+    subject = quote('Unsubscribe from MenuMoose')
+    body = quote(f'请将我的邮箱 {recipient} 从 MenuMoose 订阅中移除，谢谢！\n'
+                 f'Please remove {recipient} from the MenuMoose mailing list. Thanks!')
+    return f'mailto:qiang.1.huang@nokia.com?subject={subject}&body={body}'
+
+
 def send_menu_email(timeperiod, days, recipients):
     subject = f'Nokia Linnanmaa Oulu Weekly Menu — {timeperiod}'
-    body_html = format_menu_html(timeperiod, days)
+    body_html_template = format_menu_html(timeperiod, days)
 
     if not recipients:
         raise ValueError('No recipients configured for current mode.')
@@ -438,15 +447,21 @@ def send_menu_email(timeperiod, days, recipients):
     print(f'  [resend] Sending to {len(recipients)} recipient(s)...', flush=True)
 
     for recipient in recipients:
+        unsub_url = _unsubscribe_url(recipient)
+        body_html = body_html_template.replace('{{UNSUBSCRIBE_URL}}', html_lib.escape(unsub_url))
+
         params: resend.Emails.SendParams = {
             "from": RESEND_FROM_EMAIL,
             "to": recipient,
             "subject": subject,
             "html": body_html,
+            "headers": {
+                "List-Unsubscribe": f"<{unsub_url}>",
+            },
         }
         email = resend.Emails.send(params)
         print(f'  [resend] Email sent to {recipient}: {email.get("id")}', flush=True)
-        time.sleep(1)  # Rate limit: 1 second delay between requests
+        time.sleep(1)
 
 
 if __name__ == '__main__':

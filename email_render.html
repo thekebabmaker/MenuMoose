@@ -217,6 +217,29 @@
 			text-align: center;
 			font-style: italic;
 		}
+
+		.unsubscribe {
+			margin-top: 16px;
+			padding-top: 14px;
+			border-top: 1px solid #eaecef;
+			text-align: center;
+		}
+
+		.unsubscribe a {
+			display: inline-block;
+			font-size: 10px;
+			color: #86909c;
+			text-decoration: none;
+			padding: 3px 10px;
+			border: 1px solid #d0d7de;
+			border-radius: 20px;
+			transition: all 0.2s;
+		}
+
+		.unsubscribe a:hover {
+			color: #4b5563;
+			border-color: #9ca3af;
+		}
 	</style>
 </head>
 <body>
@@ -256,6 +279,9 @@
 			</div>
 			<div class="footer-row" style="justify-content:center; margin-top:-3px;">
 				<span> Made with ❤️ in Oulu</span>
+			</div>
+			<div class="unsubscribe">
+				<a href="{{UNSUBSCRIBE_URL}}">退订</a>
 			</div>
 		</div>
 	</div>
