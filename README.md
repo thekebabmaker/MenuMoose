@@ -8,7 +8,17 @@ MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and
 
 ## 流程图
 
-![MenuMoose Program Flow](assets/menumoose-flowchart.png)
+### 主流程
+
+![Main Pipeline](assets/menumoose-main-flow.png)
+
+### translate_menu_bulk() 子流程
+
+![translate_menu_bulk() Sub-flow](assets/menumoose-translate-flow.png)
+
+### send_menu_email() 子流程
+
+![send_menu_email() Sub-flow](assets/menumoose-send-flow.png)
 
 ---
 
@@ -33,7 +43,9 @@ MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and
 
 MenuMoose/
 - .github/workflows/menumoose.yml
-- assets/menumoose-flowchart.png
+- assets/menumoose-main-flow.png
+- assets/menumoose-translate-flow.png
+- assets/menumoose-send-flow.png
 - config.yml
 - menumoose.py
 - email_render.html
@@ -47,7 +59,7 @@ MenuMoose/
 - email_render.html: 邮件 HTML 模板（含占位符）
 - render_preview.py: 本地注入虚拟数据并生成预览
 - preview_rendered.html: 本地预览输出文件
-- assets/menumoose-flowchart.png: 程序流程图
+- assets/*.png: 程序流程图（主流程、翻译子流程、发送子流程）
 
 ---
 
@@ -113,27 +125,7 @@ resend_from_email: "MenuMoose <noreply@panda-tech.top>"
 
 ## 邮件格式示例
 
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   NOKIA LINNANMAA OULU  |  Weekly Menu 每周菜单
-   23.3. — 29.3.
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-饮食标签 | DIET LABELS
-G: Gluten free 无麸质  L: Lactose free 无乳糖  M: Milk-free 无奶制品  VL: Low lactose 低乳糖
-
-📅 MONDAY 周一
-🌟 Favourites                            8,80€
-Pork stew with honey & beet root (G,L)
-蜂蜜甜菜根炖猪肉
-Spicy lentil stew (G,M)
-辣扁豆炖菜
-🛒 Food Market                           11,80€
-Pan patty with cream sauce (G,L)
-香煎肉饼配奶油酱
-Vegetable patties with herb yogurt (G,L)
-蔬菜饼配香草酸奶
-```
+![Email Preview](assets/email-preview.png)
 
 ---
 
@@ -234,7 +226,7 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 - `config.yml` 新增 `recipients_test` 测试收件人列表
 - 翻译模型升级为 `qwen3.6-plus`
 - 流程步骤从 4 步扩展为 5 步（新增菜品解说步骤）
-- 新增程序流程图（`assets/menumoose-flowchart.png`）
+- 新增程序流程图（主流程 + translate 子流程 + send 子流程）
 - README 全面对齐当前实现
 
 ### 2026-04-06
