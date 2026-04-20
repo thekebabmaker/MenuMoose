@@ -220,11 +220,11 @@ def fetch_menu():
         c2 = courses.get('2', {})
         days.append({
             'date': DAY_NAMES.get(date_fi, date_fi),
-            'c1_items':    split_items(c1.get('title_en', '')),
+            'c1_items':    split_items(((c1.get('title_en') or '').strip()) or c1.get('title_fi', '')),
             'c1_fi_items': split_items(c1.get('title_fi', '')),
             'c1_price': c1.get('price', 'N/A'),
             'c1_recipes': extract_recipe_names(c1.get('recipes', {})),
-            'c2_items':    split_items(c2.get('title_en', '')),
+            'c2_items':    split_items(((c2.get('title_en') or '').strip()) or c2.get('title_fi', '')),
             'c2_fi_items': split_items(c2.get('title_fi', '')),
             'c2_price': c2.get('price', 'N/A'),
             'c2_recipes': extract_recipe_names(c2.get('recipes', {})),
