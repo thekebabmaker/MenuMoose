@@ -20,12 +20,6 @@ recipients_test:
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
 
-# SMTP configuration (server, port, and user are here; password stays in GitHub Secrets)
-smtp:
-  server: "smtp.gmail.com"
-  port: 465
-  # user and password come from GitHub Secrets
-
 # Translation settings
 translation:
   # model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI

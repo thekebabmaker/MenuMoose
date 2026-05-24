@@ -20,10 +20,7 @@ jobs:
           pip install requests openai PyYAML resend
       - name: Run menumoose
         env:
-          MENU_SMTP_USER: ${{ secrets.MENU_SMTP_USER }}
-          MENU_SMTP_PASS: ${{ secrets.MENU_SMTP_PASS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           python menumoose.py
