@@ -33,7 +33,7 @@ MenuMoose fetches Sodexo weekly menu data, translates dish names to Chinese, and
 - 收件人隐私保护（不在邮件头暴露列表）
 - 邮件内置退订链接（mailto: 一键退订）
 - `--white-list` 测试模式：仅发送给 `recipients_test` 列表，用于调试
-- 使用 Aliyun DashScope（qwen3.6-plus）进行批量翻译与菜品解说
+- 使用 DeepSeek API（OpenAI 兼容接口，默认 `deepseek-v4-pro`）进行批量翻译与菜品解说
 - 通过 Resend API 发送 HTML 邮件
 - 企业网络兼容（系统 CA bundle，适配 Zscaler）
 
@@ -70,7 +70,7 @@ MenuMoose/
 - `recipients`: 正式收件人列表
 - `recipients_test`: 测试收件人列表（配合 `--white-list` 使用）
 - `menu_url`: Sodexo 周菜单 JSON 地址
-- `translation.model` / `translation.aliyun_api_base`: 翻译模型与 API Base URL
+- `translation.model` / `translation.api_base`: 翻译模型与 API Base URL（OpenAI 兼容）
 - `resend_from_email`: Resend 发件地址（From，含显示名）
 - `restaurant`、`mystery_box`: 邮件展示信息
 
@@ -86,8 +86,8 @@ recipients_test:
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
 
 translation:
-  model: "qwen3.6-plus"
-  aliyun_api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  model: "deepseek-v4-pro"
+  api_base: "https://api.deepseek.com"
 
 resend_from_email: "MenuMoose <noreply@panda-tech.top>"
 ```
@@ -98,10 +98,10 @@ resend_from_email: "MenuMoose <noreply@panda-tech.top>"
 
 | Secret | 说明 |
 |---|---|
-| `ALIYUN_API_KEY` | Aliyun DashScope API Key（翻译） |
+| `OPENAI_API_KEY` | 翻译 / 菜品解说 API Key（当前默认填 **DeepSeek** API Key；变量名沿用 OpenAI SDK 惯例） |
 | `RESEND_API_KEY` | Resend API Key（邮件发送） |
 
-说明：当前代码不再使用 SMTP 账号密码发送邮件。
+说明：邮件通过 Resend 发送，不再使用 SMTP。workflow 中若仍注入 `MENU_SMTP_*`、`ALIYUN_API_KEY` 可忽略（代码未读取）。
 
 ---
 
@@ -141,9 +141,11 @@ pip install -r requirements.txt
 ### 设置环境变量
 
 ```bash
-export ALIYUN_API_KEY="your-aliyun-api-key"
+export OPENAI_API_KEY="your-deepseek-api-key"   # 见 config.yml 中 translation.api_base
 export RESEND_API_KEY="your-resend-api-key"
 ```
+
+也可复制 `.env.example` 为 `.env` 后填入（勿提交 `.env`）。
 
 ### 运行
 
@@ -163,10 +165,10 @@ python menumoose.py --white-list
   [fetch_menu] HTTP 200, 90779 bytes
 [2/5] Menu fetched: 23.3. - 29.3., 5 days
 [3/5] Translating menu...
-  [translate] Calling https://dashscope.aliyuncs.com/compatible-mode/v1 model=qwen3.6-plus, 10 titles...
+  [translate] Calling https://api.deepseek.com model=deepseek-v4-pro, 10 titles...
   [translate] API response received (407 chars)
 [4/5] Translation done. Generating dish explanations...
-  [explain] Calling https://dashscope.aliyuncs.com/compatible-mode/v1 model=qwen3.6-plus, 10 course entries...
+  [explain] Calling https://api.deepseek.com model=deepseek-v4-pro, 10 course entries...
   [explain] API response received (1203 chars)
 [5/5] Dish explanations done. Sending email...
   [resend] Sending to 1 recipient(s)...
@@ -189,8 +191,9 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 
 ### 翻译失败 / Connection error
 
-- 确认 `ALIYUN_API_KEY` 已配置且有效
-- 企业网络下用 `curl -X POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions ...` 验证网络可达性
+- 确认 `OPENAI_API_KEY` 已配置且与 `config.yml` 中 `translation.api_base` 匹配（默认 DeepSeek）
+- 未设置 key 时程序仍会发邮件，但无中文翻译与解说（`translation_client` 为 `None`）
+- 企业网络下用 `curl -X POST https://api.deepseek.com/chat/completions -H "Authorization: Bearer $OPENAI_API_KEY" ...` 验证可达性
 - 检查是否有代理环境变量：`echo $HTTPS_PROXY`
 
 ### 收不到邮件 / Resend 发送失败
@@ -218,6 +221,11 @@ GitHub Actions 环境无代理限制，相同代码直接可用。
 ---
 
 ## 更新日志
+
+### 2026-05-24
+- 翻译后端切换为 DeepSeek（`deepseek-v4-pro`，`https://api.deepseek.com`）
+- 环境变量统一为 `OPENAI_API_KEY` + `config.yml` 的 `translation.api_base`（移除 `ALIYUN_API_KEY` / `aliyun_api_base`）
+- README、`.env.example` 与当前实现同步
 
 ### 2026-04-16
 - 新增 `explain_days()`：每道菜自动生成中文解说（口味、食材、酱料风格），帮助不熟悉西餐的读者判断是否合口

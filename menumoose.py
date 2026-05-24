@@ -28,10 +28,8 @@ RESEND_FROM_EMAIL = CONFIG.get('resend_from_email', 'noreply@panda-tech.top')
 
 # URLs and API config from config file
 MENU_JSON_URL = CONFIG['menu_url']
-# OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # From GitHub Secrets
-OPENAI_API_KEY = os.environ.get('ALIYUN_API_KEY')  # From GitHub Secrets
-# MODEL_URL = CONFIG['translation']['api_base']
-MODEL_URL = CONFIG['translation']['aliyun_api_base']
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')  # From GitHub Secrets
+MODEL_URL = CONFIG['translation']['api_base']
 TRANSLATION_MODEL = CONFIG['translation']['model']
 RESTAURANT_NAME = CONFIG['restaurant']['name']
 RESTAURANT_URL = CONFIG['restaurant']['url']
