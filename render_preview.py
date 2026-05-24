@@ -21,7 +21,7 @@ MOCK_DAY_BLOCKS = """
   </div>
   <div class="course">
     <div class="course-header">
-      <span class="course-title">🌟 Favourites</span>
+      <span class="course-title">🍽️ Favourites</span>
       <span class="course-price">8,80€</span>
     </div>
     <div class="dish">
@@ -38,10 +38,11 @@ MOCK_DAY_BLOCKS = """
         <div class="dish-zh">辣扁豆炖菜</div>
       </div>
     </div>
+    <div class="course-explain">蜂蜜甜菜根炖猪肉搭配土豆泥，甜咸交融；辛辣扁豆炖菜配印度香米，素食友好。</div>
   </div>
   <div class="course">
     <div class="course-header">
-      <span class="course-title">🛒 Food Market</span>
+      <span class="course-title">👨‍🍳 Food Market</span>
       <span class="course-price">11,80€</span>
     </div>
     <div class="dish">
@@ -58,6 +59,7 @@ MOCK_DAY_BLOCKS = """
         <div class="dish-zh">蔬菜饼配香草酸奶</div>
       </div>
     </div>
+    <div class="course-explain">香草酸奶酱配蔬菜饼，口感清爽，适合素食者。</div>
   </div>
 </div>
 
@@ -67,7 +69,7 @@ MOCK_DAY_BLOCKS = """
   </div>
   <div class="course">
     <div class="course-header">
-      <span class="course-title">🌟 Favourites</span>
+      <span class="course-title">🍽️ Favourites</span>
       <span class="course-price">8,80€</span>
     </div>
     <div class="dish">
@@ -84,10 +86,11 @@ MOCK_DAY_BLOCKS = """
         <div class="dish-zh">扁豆蔬菜波隆那酱</div>
       </div>
     </div>
+    <div class="course-explain">意式扁豆蔬菜波隆那酱配意面，酸甜开胃，素食友好。</div>
   </div>
   <div class="course">
     <div class="course-header">
-      <span class="course-title">🛒 Food Market</span>
+      <span class="course-title">👨‍🍳 Food Market</span>
       <span class="course-price">11,80€</span>
     </div>
     <div class="dish">
@@ -104,6 +107,7 @@ MOCK_DAY_BLOCKS = """
         <div class="dish-zh">蔬菜慕萨卡</div>
       </div>
     </div>
+    <div class="course-explain">希腊传统慕萨卡，茄子土豆肉末层层叠加，芝士焗烤，奶香浓郁。</div>
   </div>
 </div>
 """.strip()

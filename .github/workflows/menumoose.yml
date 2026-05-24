@@ -17,10 +17,27 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
-          pip install requests openai PyYAML resend
+          pip install -r requirements.txt
       - name: Run menumoose
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           python menumoose.py
+
+      - name: Notify failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          python << 'PYEOF'
+          import resend, os
+          resend.api_key = os.environ['RESEND_API_KEY']
+          resend.Emails.send({
+              'from': 'MenuMoose <noreply@panda-tech.top>',
+              'to': 'qiang.1.huang@nokia.com',
+              'subject': '[MenuMoose] Weekly menu pipeline FAILED',
+              'html': '<p>MenuMoose weekly menu pipeline failed. Check <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">GitHub Actions run</a> for details.</p>',
+          })
+          print('Failure notification sent.')
+          PYEOF

@@ -33,7 +33,6 @@ MODEL_URL = CONFIG['translation']['api_base']
 TRANSLATION_MODEL = CONFIG['translation']['model']
 RESTAURANT_NAME = CONFIG['restaurant']['name']
 RESTAURANT_URL = CONFIG['restaurant']['url']
-MYSTERY_BOX = CONFIG['mystery_box']
 
 TRANSLATION_PROMPT = (
     'You are a professional menu translator. '
@@ -92,6 +91,20 @@ def _clean_translation_lines(raw_text):
     return lines
 
 
+def _retry_call(fn, max_attempts=3, base_delay=2, label=''):
+    """Call fn() with retries and exponential backoff."""
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except Exception as e:
+            if attempt == max_attempts - 1:
+                raise
+            delay = base_delay * (2 ** attempt)
+            tag = f' [{label}]' if label else ''
+            print(f'  [retry]{tag} Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay}s...', flush=True)
+            time.sleep(delay)
+
+
 def translate_menu_bulk(titles_en):
     """
     Translate all menu titles in one API call.
@@ -128,27 +141,30 @@ def translate_menu_bulk(titles_en):
 
     print(f'  [translate] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(uncached)} titles...', flush=True)
     try:
-        response = translation_client.chat.completions.create(
-            model=TRANSLATION_MODEL,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': (
-                        'You are a professional and culturally-aware Finnish-to-Chinese culinary translator.'
-                        'I will provide a list of Finnish dish titles (one per line).'
-                        'Translate each into **appealing, professional Simplified Chinese menu names** that balance appetite appeal with Nordic elegance.'
-                        'Guidelines: '
-                        '1. Use standard Chinese Western-cuisine terminology (e.g., use "香煎" for paistettu, "慢炖" for haudutettu). '
-                        '2. Be precise with Finnish ingredients: translate "Kirjolohi" as 虹鳟, "Riista" as 野味/鹿肉 based on context. '
-                        '3. **Strictly preserve** all dietary labels like (L, G), (M, G, V), numbers, and original punctuation. '
-                        '4. Avoid robotic literal translation; for example, "Lohikeitto" should be "芬兰传统奶油三文鱼浓汤" rather than just "三文鱼汤". '
-                        '5. Maintain the original order, one translated title per line. '
-                        'Return ONLY the translated Chinese titles, with no introductory or concluding text.'
-                    )
-                },
-                {'role': 'user', 'content': bulk_text},
-            ],
-            temperature=0,
+        response = _retry_call(
+            lambda: translation_client.chat.completions.create(
+                model=TRANSLATION_MODEL,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': (
+                            'You are a professional and culturally-aware Finnish-to-Chinese culinary translator.'
+                            'I will provide a list of Finnish dish titles (one per line).'
+                            'Translate each into **appealing, professional Simplified Chinese menu names** that balance appetite appeal with Nordic elegance.'
+                            'Guidelines: '
+                            '1. Use standard Chinese Western-cuisine terminology (e.g., use "香煎" for paistettu, "慢炖" for haudutettu). '
+                            '2. Be precise with Finnish ingredients: translate "Kirjolohi" as 虹鳟, "Riista" as 野味/鹿肉 based on context. '
+                            '3. **Strictly preserve** all dietary labels like (L, G), (M, G, V), numbers, and original punctuation. '
+                            '4. Avoid robotic literal translation; for example, "Lohikeitto" should be "芬兰传统奶油三文鱼浓汤" rather than just "三文鱼汤". '
+                            '5. Maintain the original order, one translated title per line. '
+                            'Return ONLY the translated Chinese titles, with no introductory or concluding text.'
+                        )
+                    },
+                    {'role': 'user', 'content': bulk_text},
+                ],
+                temperature=0,
+            ),
+            label='translate'
         )
         translated_text = response.choices[0].message.content or ''
         print(f'  [translate] API response received ({len(translated_text)} chars)', flush=True)
@@ -306,26 +322,29 @@ def explain_days(days):
 
     print(f'  [explain] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(entries)} course entries...', flush=True)
     try:
-        response = translation_client.chat.completions.create(
-            model=TRANSLATION_MODEL,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': (
-                        'You are a Western menu explanation assistant. '
-                        'I will provide multiple entries of "dish name (in Finnish) + recipe component names". '
-                        'For each numbered entry, write a brief Chinese explanation for readers unfamiliar with Western cuisine, so they can decide whether the dish suits them. '
-                        'Keep each explanation within 2-3 sentences and include: key ingredients/flavor profile, and a suitability note (who it is suitable or unsuitable for). '
-                        'Sauce is very important in Western dishes: if a sauce is present or implied, explain the sauce style, typical ingredients, and expected taste (for example creamy/tangy/herby/savory). '
-                        'If the exact sauce recipe is unknown, state it as an informed estimate based on the dish/recipe names. '
-                        'If information is insufficient, explicitly write "信息不足，建议现场确认过敏原". '
-                        'Output must strictly follow this format: [number] explanation. '
-                        'One line per entry only; do not output extra titles, notes, or blank lines.'
-                    )
-                },
-                {'role': 'user', 'content': bulk_text},
-            ],
-            temperature=0.2,
+        response = _retry_call(
+            lambda: translation_client.chat.completions.create(
+                model=TRANSLATION_MODEL,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': (
+                            'You are a Western menu explanation assistant. '
+                            'I will provide multiple entries of "dish name (in Finnish) + recipe component names". '
+                            'For each numbered entry, write a brief Chinese explanation for readers unfamiliar with Western cuisine, so they can decide whether the dish suits them. '
+                            'Keep each explanation within 2-3 sentences and include: key ingredients/flavor profile, and a suitability note (who it is suitable or unsuitable for). '
+                            'Sauce is very important in Western dishes: if a sauce is present or implied, explain the sauce style, typical ingredients, and expected taste (for example creamy/tangy/herby/savory). '
+                            'If the exact sauce recipe is unknown, state it as an informed estimate based on the dish/recipe names. '
+                            'If information is insufficient, explicitly write "信息不足，建议现场确认过敏原". '
+                            'Output must strictly follow this format: [number] explanation. '
+                            'One line per entry only; do not output extra titles, notes, or blank lines.'
+                        )
+                    },
+                    {'role': 'user', 'content': bulk_text},
+                ],
+                temperature=0.2,
+            ),
+            label='explain'
         )
         explained_text = response.choices[0].message.content or ''
         print(f'  [explain] API response received ({len(explained_text)} chars)', flush=True)
@@ -457,7 +476,10 @@ def send_menu_email(timeperiod, days, recipients):
                 "List-Unsubscribe": f"<{unsub_url}>",
             },
         }
-        email = resend.Emails.send(params)
+        email = _retry_call(
+            lambda p=params: resend.Emails.send(p),
+            label=f'resend:{recipient}'
+        )
         print(f'  [resend] Email sent to {recipient}: {email.get("id")}', flush=True)
         time.sleep(1)
 

@@ -32,10 +32,4 @@ restaurant:
   name: "Nokia Linnanmaa Oulu"
   url: "https://www.sodexo.fi/ravintolat/nokia-linnanmaa"
 
-# Leftover mystery box info
-mystery_box:
-  enabled: true
-  time: "Mon - Fri, 13.00-13.10"
-  price: "7,70€/kg"
-
 resend_from_email: "MenuMoose🫎 <noreply@panda-tech.top>"
