@@ -16,7 +16,7 @@ jobs:
           name: Notify failure
           when: on_fail
           command: |
-            python << 'PYEOF'
+            python \<< 'PYEOF'
             import resend, os
             resend.api_key = os.environ['RESEND_API_KEY']
             resend.Emails.send({
