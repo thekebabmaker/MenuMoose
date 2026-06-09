@@ -4,13 +4,13 @@
 # Format: comma-separated email addresses
 recipients:
   - qiang.1.huang@nokia.com
-  - jiao.wang@nokia.com
-  - lingyan.jiang@nokia.com
-  - qiuxiang.yang@nokia.com
-  - tuanbin.liu@nokia.com
-  - zhong.1.zhuang@nokia.com
-  - yang.deng@nokia.com
-  - grace.guo@nokia.com
+  # - jiao.wang@nokia.com
+  # - lingyan.jiang@nokia.com
+  # - qiuxiang.yang@nokia.com
+  # - tuanbin.liu@nokia.com
+  # - zhong.1.zhuang@nokia.com
+  # - yang.deng@nokia.com
+  # - grace.guo@nokia.com
   - rendy.huang@me.com
 
 recipients_test:
