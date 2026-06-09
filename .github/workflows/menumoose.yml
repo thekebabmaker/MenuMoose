@@ -1,9 +1,10 @@
 name: MenuMoose
 
 on:
-  schedule:
-    - cron: '0 4 * * 1'  # Every Monday UTC 4:00 = Helsinki 7:00
-  workflow_dispatch:
+  # 已经迁移到 CircleCI，在此处注释掉触发器以关闭 GitHub Actions
+  # schedule:
+  #   - cron: '0 4 * * 1'  # Every Monday UTC 4:00 = Helsinki 7:00
+  # workflow_dispatch:
 
 jobs:
   menumoose:

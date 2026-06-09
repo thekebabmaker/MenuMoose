@@ -30,5 +30,11 @@ jobs:
 
 workflows:
   menumoose-workflow:
+    # 只有定时任务 (schedule) 或网页手动触发 (api) 时才执行；普通 git push 不跑
+    # 注意: pipeline.trigger.type 仅在 GitHub App 集成下可用
+    when:
+      or:
+        - equal: [ "schedule", << pipeline.trigger.type >> ]
+        - equal: [ "api", << pipeline.trigger.type >> ]
     jobs:
       - run-menumoose
