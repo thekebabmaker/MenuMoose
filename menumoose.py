@@ -59,7 +59,7 @@ def _make_openai_client(base_url, api_key):
     """
     paths = ssl.get_default_verify_paths()
     system_ca = paths.cafile or paths.openssl_cafile
-    if system_ca:
+    if system_ca and os.path.exists(system_ca):
         print(f'  [openai] Using CA bundle: {system_ca}', flush=True)
         http_client = httpx.Client(verify=system_ca)
         return OpenAI(base_url=base_url, api_key=api_key, http_client=http_client)
