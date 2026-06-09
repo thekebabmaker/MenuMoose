@@ -1,0 +1,34 @@
+version: 2.1
+
+jobs:
+  run-menumoose:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: pip install -r requirements.txt
+      - run:
+          name: Run menumoose
+          command: python menumoose.py
+      - run:
+          name: Notify failure
+          when: on_fail
+          command: |
+            python << 'PYEOF'
+            import resend, os
+            resend.api_key = os.environ['RESEND_API_KEY']
+            resend.Emails.send({
+                'from': 'MenuMoose <noreply@panda-tech.top>',
+                'to': 'qiang.1.huang@nokia.com',
+                'subject': '[MenuMoose] Weekly menu pipeline FAILED',
+                'html': f'<p>MenuMoose weekly menu pipeline failed. Check <a href="{os.environ.get("CIRCLE_BUILD_URL", "CircleCI")}">CircleCI run</a> for details.</p>',
+            })
+            print('Failure notification sent.')
+            PYEOF
+
+workflows:
+  menumoose-workflow:
+    jobs:
+      - run-menumoose
