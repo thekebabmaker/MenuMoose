@@ -72,23 +72,27 @@ translation_client = _make_openai_client(MODEL_URL, OPENAI_API_KEY) if OPENAI_AP
 translation_cache = {}
 
 
-def _clean_translation_lines(raw_text):
-    """Normalize model output lines so minor format drift won't break mapping."""
-    text = (raw_text or '').strip()
-    if text.startswith('```'):
-        text = text.strip('`')
-        text = text.replace('text', '', 1).replace('markdown', '', 1).replace('json', '', 1).strip()
+def _parse_numbered(raw_text, count):
+    """Parse "[n] text" lines into a list of `count` strings ('' where missing).
 
-    lines = []
-    for line in text.split('\n'):
+    Mapping by number instead of line position means a missing/extra line can't
+    shift later entries. Unnumbered lines continue the previous entry.
+    """
+    by_number = {}
+    current = None
+    for line in (raw_text or '').split('\n'):
         line = line.strip()
-        if not line:
+        if not line or line.startswith('```'):
             continue
-        # Remove common list prefixes like "1. ", "- ", "* " etc.
-        line = re.sub(r'^\s*(?:[-*•]|\d+[\.)])\s*', '', line)
-        if line:
-            lines.append(line)
-    return lines
+        m = re.match(r'^\[(\d+)\]\s*(.*)', line)
+        if m:
+            n = int(m.group(1))
+            current = n if 1 <= n <= count and n not in by_number else None
+            if current:
+                by_number[current] = m.group(2)
+        elif current:
+            by_number[current] += ' ' + line
+    return [by_number.get(i, '').strip() for i in range(1, count + 1)]
 
 
 def _retry_call(fn, max_attempts=3, base_delay=2, label=''):
@@ -136,8 +140,7 @@ def translate_menu_bulk(titles_en):
     if not uncached:
         return {t: translation_cache.get(t, t) for t in titles_en}
 
-    # Build bulk payload: one title per line
-    bulk_text = '\n'.join(uncached)
+    bulk_text = '\n'.join(f'[{i}] {t}' for i, t in enumerate(uncached, start=1))
 
     print(f'  [translate] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(uncached)} titles...', flush=True)
     try:
@@ -149,15 +152,15 @@ def translate_menu_bulk(titles_en):
                         'role': 'system',
                         'content': (
                             'You are a professional and culturally-aware Finnish-to-Chinese culinary translator.'
-                            'I will provide a list of Finnish dish titles (one per line).'
+                            'I will provide a list of Finnish dish titles, one per line, each prefixed with a number like [1].'
                             'Translate each into **appealing, professional Simplified Chinese menu names** that balance appetite appeal with Nordic elegance.'
                             'Guidelines: '
                             '1. Use standard Chinese Western-cuisine terminology (e.g., use "香煎" for paistettu, "慢炖" for haudutettu). '
                             '2. Be precise with Finnish ingredients: translate "Kirjolohi" as 虹鳟, "Riista" as 野味/鹿肉 based on context. '
                             '3. **Strictly preserve** all dietary labels like (L, G), (M, G, V), numbers, and original punctuation. '
                             '4. Avoid robotic literal translation; for example, "Lohikeitto" should be "芬兰传统奶油三文鱼浓汤" rather than just "三文鱼汤". '
-                            '5. Maintain the original order, one translated title per line. '
-                            'Return ONLY the translated Chinese titles, with no introductory or concluding text.'
+                            '5. Output one line per title in the format: [number] translated title, keeping the same number as the input. '
+                            'Return ONLY these numbered lines, with no introductory or concluding text.'
                         )
                     },
                     {'role': 'user', 'content': bulk_text},
@@ -168,13 +171,9 @@ def translate_menu_bulk(titles_en):
         )
         translated_text = response.choices[0].message.content or ''
         print(f'  [translate] API response received ({len(translated_text)} chars)', flush=True)
-        translated_lines = _clean_translation_lines(translated_text)
-
-        # Keep partial success: truncate extras and pad missing with originals.
-        if len(translated_lines) > len(uncached):
-            translated_lines = translated_lines[:len(uncached)]
-        elif len(translated_lines) < len(uncached):
-            translated_lines.extend(uncached[len(translated_lines):])
+        # Keep partial success: missing numbers fall back to the original title.
+        parsed = _parse_numbered(translated_text, len(uncached))
+        translated_lines = [p or orig for p, orig in zip(parsed, uncached)]
     except Exception as e:
         print(f'  [translate] API call failed: {e}', flush=True)
         translated_lines = uncached  # Fallback to original
@@ -223,26 +222,30 @@ def fetch_menu():
         """
         if not title_en or title_en.strip() == 'N/A':
             return []
-        return [t.strip() for t in re.split(r'(?<!\bw)/', title_en, flags=re.IGNORECASE) if t.strip()]
+        return [' '.join(t.split()) for t in re.split(r'(?<!\bw)/', title_en, flags=re.IGNORECASE) if t.strip()]
 
     timeperiod = data.get('timeperiod', 'N/A')
     days = []
     for day_data in data.get('mealdates', []):
         date_fi = day_data.get('date', '')
         courses = day_data.get('courses', {})
-        c1 = courses.get('1', {})
-        c2 = courses.get('2', {})
-        days.append({
-            'date': DAY_NAMES.get(date_fi, date_fi),
-            'c1_items':    split_items(((c1.get('title_en') or '').strip()) or c1.get('title_fi', '')),
-            'c1_fi_items': split_items(c1.get('title_fi', '')),
-            'c1_price': c1.get('price', 'N/A'),
-            'c1_recipes': extract_recipe_names(c1.get('recipes', {})),
-            'c2_items':    split_items(((c2.get('title_en') or '').strip()) or c2.get('title_fi', '')),
-            'c2_fi_items': split_items(c2.get('title_fi', '')),
-            'c2_price': c2.get('price', 'N/A'),
-            'c2_recipes': extract_recipe_names(c2.get('recipes', {})),
-        })
+        day = {'date': DAY_NAMES.get(date_fi, date_fi)}
+        # A category may hold several courses; they share one price, taken from the first.
+        # Without numbered categories ("1. FAVOURITES"), fall back to course keys '1' / '2'.
+        categories = {k: (c.get('category') or '').strip() for k, c in courses.items()}
+        numbered = any(re.match(r'\d+\.', cat) for cat in categories.values())
+        for prefix, category_no in (('c1', '1'), ('c2', '2')):
+            if numbered:
+                group = [courses[k] for k, cat in categories.items() if cat.startswith(category_no + '.')]
+            else:
+                group = [courses[category_no]] if category_no in courses else []
+            day[f'{prefix}_courses'] = [{
+                'items':    split_items(((c.get('title_en') or '').strip()) or c.get('title_fi', '')),
+                'fi_items': split_items(c.get('title_fi', '')),
+                'recipes':  extract_recipe_names(c.get('recipes', {})),
+            } for c in group]
+            day[f'{prefix}_price'] = group[0].get('price', 'N/A') if group else 'N/A'
+        days.append(day)
     return timeperiod, days
 
 
@@ -255,8 +258,9 @@ def translate_days(days):
     # and yield more accurate Chinese translations than the English versions.
     fi_titles = []
     for day in days:
-        fi_titles.extend(day['c1_fi_items'])
-        fi_titles.extend(day['c2_fi_items'])
+        for prefix in ('c1', 'c2'):
+            for course in day[f'{prefix}_courses']:
+                fi_titles.extend(course['fi_items'])
 
     # Translate all Finnish titles at once
     fi_to_zh = translate_menu_bulk(fi_titles)
@@ -279,8 +283,9 @@ def translate_days(days):
     for day in days:
         translated_days.append({
             **day,
-            'c1_items_zh': map_zh(day['c1_items'], day['c1_fi_items']),
-            'c2_items_zh': map_zh(day['c2_items'], day['c2_fi_items']),
+            **{f'{prefix}_courses': [{**c, 'items_zh': map_zh(c['items'], c['fi_items'])}
+                                     for c in day[f'{prefix}_courses']]
+               for prefix in ('c1', 'c2')},
         })
     return translated_days
 
@@ -289,28 +294,39 @@ def explain_days(days):
     """
     Explain dishes in Chinese for readers unfamiliar with Western cuisine.
 
-    Input source per day:
-      - c1_fi_items / c2_fi_items: Finnish dish titles
-      - c1_recipes / c2_recipes: extracted recipe component names
+    Input source per course in c1_courses / c2_courses:
+      - fi_items: Finnish dish titles
+      - recipes: extracted recipe component names
 
     Returns:
-      list[day] with two new keys: c1_explain, c2_explain
+      list[day] where every course gets a new key: explain
     """
     if not days:
         return days
 
     fallback = '信息有限，请结合饮食标签和个人口味判断是否适合自己。'
+
+    def with_explains(explains):
+        it = iter(explains)
+        return [{
+            **day,
+            **{f'{prefix}_courses': [{**c, 'explain': next(it, '') or fallback}
+                                     for c in day[f'{prefix}_courses']]
+               for prefix in ('c1', 'c2')},
+        } for day in days]
+
     if translation_client is None:
-        return [{**day, 'c1_explain': fallback, 'c2_explain': fallback} for day in days]
+        return with_explains([])
 
     entries = []
     for day in days:
         for prefix in ('c1', 'c2'):
-            fi_items = [i.strip() for i in day.get(f'{prefix}_fi_items', []) if i and i.strip()]
-            recipe_names = [r.strip() for r in day.get(f'{prefix}_recipes', []) if r and r.strip()]
-            dish_line = ' / '.join(fi_items) if fi_items else 'N/A'
-            recipe_line = ' / '.join(recipe_names) if recipe_names else 'N/A'
-            entries.append((dish_line, recipe_line))
+            for course in day[f'{prefix}_courses']:
+                fi_items = [i.strip() for i in course['fi_items'] if i and i.strip()]
+                recipe_names = [r.strip() for r in course['recipes'] if r and r.strip()]
+                dish_line = ' / '.join(fi_items) if fi_items else 'N/A'
+                recipe_line = ' / '.join(recipe_names) if recipe_names else 'N/A'
+                entries.append((dish_line, recipe_line))
 
     user_lines = []
     for idx, (dish_line, recipe_line) in enumerate(entries, start=1):
@@ -320,7 +336,7 @@ def explain_days(days):
         )
     bulk_text = '\n\n'.join(user_lines)
 
-    print(f'  [explain] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(entries)} course entries...', flush=True)
+    print(f'  [explain] Calling {MODEL_URL} model={TRANSLATION_MODEL}, {len(entries)} dish entries...', flush=True)
     try:
         response = _retry_call(
             lambda: translation_client.chat.completions.create(
@@ -332,7 +348,8 @@ def explain_days(days):
                             'You are a Western menu explanation assistant. '
                             'I will provide multiple entries of "dish name (in Finnish) + recipe component names". '
                             'For each numbered entry, write a brief Chinese explanation for readers unfamiliar with Western cuisine, so they can decide whether the dish suits them. '
-                            'Keep each explanation within 2-3 sentences and include: key ingredients/flavor profile, and a suitability note (who it is suitable or unsuitable for). '
+                            'Keep each explanation within 1-2 short sentences (about 60 Chinese characters) and include: key ingredients/flavor profile, and a suitability note (who it is suitable or unsuitable for). '
+                            'The reader already sees the Chinese dish name right above your text, so do NOT restate or paraphrase the dish name; start directly with ingredients or flavor (e.g. "茄子、番茄和奶香白酱层叠焗烤，…"). '
                             'Sauce is very important in Western dishes: if a sauce is present or implied, explain the sauce style, typical ingredients, and expected taste (for example creamy/tangy/herby/savory). '
                             'If the exact sauce recipe is unknown, state it as an informed estimate based on the dish/recipe names. '
                             'If information is insufficient, explicitly write "信息不足，建议现场确认过敏原". '
@@ -348,30 +365,13 @@ def explain_days(days):
         )
         explained_text = response.choices[0].message.content or ''
         print(f'  [explain] API response received ({len(explained_text)} chars)', flush=True)
-        explained_lines = _clean_translation_lines(explained_text)
+        if response.choices[0].finish_reason == 'length':
+            print('  [explain] WARNING: output truncated by max_tokens; trailing dishes use fallback', flush=True)
     except Exception as e:
         print(f'  [explain] API call failed: {e}', flush=True)
-        explained_lines = []
+        explained_text = ''
 
-    normalized = []
-    for line in explained_lines:
-        normalized.append(re.sub(r'^\[\d+\]\s*', '', line).strip())
-
-    if len(normalized) > len(entries):
-        normalized = normalized[:len(entries)]
-    elif len(normalized) < len(entries):
-        normalized.extend([fallback] * (len(entries) - len(normalized)))
-
-    explained_days = []
-    i = 0
-    for day in days:
-        explained_days.append({
-            **day,
-            'c1_explain': normalized[i] if normalized[i] else fallback,
-            'c2_explain': normalized[i + 1] if normalized[i + 1] else fallback,
-        })
-        i += 2
-    return explained_days
+    return with_explains(_parse_numbered(explained_text, len(entries)))
 
 
 def format_menu_html(timeperiod, days):
@@ -381,21 +381,29 @@ def format_menu_html(timeperiod, days):
     with open(template_path, 'r', encoding='utf-8') as f:
         template = f.read()
 
-    def render_dishes(items_en, items_zh):
+    def render_dishes(items_en, items_zh, explain=''):
+        pairs = list(zip(items_en, items_zh))
         parts = []
-        for en, zh in zip(items_en, items_zh):
+        for i, (en, zh) in enumerate(pairs):
             failed = (en == zh)
             zh_text = e(en) + '（翻译失败）' if failed else e(zh)
+            # One explanation per course, shown under its last dish.
+            explain_html = (f'    <div class="course-explain">{e(explain)}</div>'
+                            if explain and i == len(pairs) - 1 else '')
             parts.append(
                 '<div class="dish">'
                 '  <div class="dish-dot"></div>'
                 '  <div>'
                 f'    <div class="dish-en">{e(en)}</div>'
                 f'    <div class="dish-zh">{zh_text}</div>'
+                f'{explain_html}'
                 '  </div>'
                 '</div>'
             )
         return ''.join(parts)
+
+    def render_courses(courses):
+        return ''.join(render_dishes(c['items'], c['items_zh'], c.get('explain', '')) for c in courses)
 
     day_blocks = []
     for day in days:
@@ -404,10 +412,8 @@ def format_menu_html(timeperiod, days):
         day_en = e(parts[0]) if parts else e(day['date'])
         day_zh = e(parts[1]) if len(parts) > 1 else ''
 
-        c1 = render_dishes(day['c1_items'], day['c1_items_zh'])
-        c2 = render_dishes(day['c2_items'], day['c2_items_zh'])
-        c1_explain = e(day.get('c1_explain', ''))
-        c2_explain = e(day.get('c2_explain', ''))
+        c1 = render_courses(day['c1_courses'])
+        c2 = render_courses(day['c2_courses'])
 
         day_blocks.append(
             '<div class="day-block">'
@@ -419,14 +425,12 @@ def format_menu_html(timeperiod, days):
             '      <span class="course-title">🍽️ Favourites</span>'
             f'      <span class="course-price">{e(day["c1_price"])}</span>'
             f'    </div>{c1}'
-            f'    <div class="course-explain">{c1_explain}</div>'
             '  </div>'
             '  <div class="course">'
             '    <div class="course-header">'
             '      <span class="course-title">👨‍🍳 Food Market</span>'
             f'      <span class="course-price">{e(day["c2_price"])}</span>'
             f'    </div>{c2}'
-            f'    <div class="course-explain">{c2_explain}</div>'
             '  </div>'
             '</div>'
         )

@@ -12,6 +12,9 @@ recipients:
   - yang.deng@nokia.com
   - grace.guo@nokia.com
   - rendy.huang@me.com
+  - qing.wang@nokia.com
+  - freddy.zhang@nokia.com
+  - weijun.shao@nokia.com
 
 recipients_test:
   - qiang.1.huang@nokia.com
@@ -23,7 +26,7 @@ menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
 # Translation settings
 translation:
   # model: "stepfun/step-3.5-flash:free"  # or "gpt-4o-mini" for OpenAI
-  model: "deepseek-v4-pro"
+  model: "deepseek-flash"
   api_base: "https://api.deepseek.com"
    # api_key comes from GitHub Secrets
 
