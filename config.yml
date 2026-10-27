@@ -15,10 +15,10 @@ recipients:
   - qing.wang@nokia.com
   - freddy.zhang@nokia.com
   - weijun.shao@nokia.com
+  - jinhu.wang@nokia.com
 
 recipients_test:
   - qiang.1.huang@nokia.com
-  - rendy.huang@me.com
 
 # Sodexo Menu API URL
 menu_url: "https://www.sodexo.fi/ruokalistat/output/weekly_json/3207223"
